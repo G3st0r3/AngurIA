@@ -1,10 +1,17 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
+import 'package:backend/models/analysis_result.dart';
+import 'package:backend/services/watermelon_analyzer_service.dart';
+import 'package:image/image.dart' as img;
 import 'package:shelf/shelf.dart';
 import 'package:shelf/shelf_io.dart';
 import 'package:shelf_router/shelf_router.dart';
-import 'package:backend/models/analysis_result.dart';
+
+const WatermelonAnalyzerService _analyzerService =
+    WatermelonAnalyzerService();
+
 const Map<String, String> _corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
@@ -42,33 +49,97 @@ Future<Response> _analyzeHandler(Request request) async {
     );
   }
 
-  final simulatedResult = AnalysisResult(
-  score: 91,
-  sweetness: 95,
-  crunchiness: 88,
-  mealiness: 4,
-  confidence: 93,
-  recommendation: 'Consigliata',
-  reasons: [
-    'Forma regolare',
-    'Buon contrasto delle striature',
-    'Aspetto generale compatibile con una buona maturazione',
-  ],
-);
+  try {
+    final Map<String, dynamic> body =
+        jsonDecode(requestBody) as Map<String, dynamic>;
 
-  return Response.ok(
-jsonEncode(simulatedResult.toJson()),
-    headers: {
-      HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
-    },
-  );
+    final Object? imageValue = body['image'];
+
+    if (imageValue is! String || imageValue.isEmpty) {
+      return Response(
+        HttpStatus.badRequest,
+        body: jsonEncode({
+          'error': 'Immagine mancante nella richiesta',
+        }),
+        headers: {
+          HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
+        },
+      );
+    }
+
+    final String imageBase64 = imageValue;
+
+    print(
+      'Dimensione Base64: ${imageBase64.length} caratteri',
+    );
+
+    final Uint8List imageBytes = base64Decode(imageBase64);
+
+    print(
+      'Dimensione immagine: ${imageBytes.length} byte',
+    );
+
+    final img.Image? decodedImage = img.decodeImage(imageBytes);
+
+    if (decodedImage == null) {
+      return Response(
+        HttpStatus.badRequest,
+        body: jsonEncode({
+          'error': 'Il file ricevuto non è un’immagine valida',
+        }),
+        headers: {
+          HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
+        },
+      );
+    }
+
+    print(
+      'Immagine valida: '
+      '${decodedImage.width}x${decodedImage.height} pixel',
+    );
+
+    final AnalysisResult simulatedResult =
+        _analyzerService.analyzeSimulated();
+
+    return Response.ok(
+      jsonEncode(simulatedResult.toJson()),
+      headers: {
+        HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
+      },
+    );
+  } on FormatException {
+    return Response(
+      HttpStatus.badRequest,
+      body: jsonEncode({
+        'error': 'JSON o immagine Base64 non validi',
+      }),
+      headers: {
+        HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
+      },
+    );
+  } catch (error) {
+    print('Errore durante l’analisi: $error');
+
+    return Response(
+      HttpStatus.internalServerError,
+      body: jsonEncode({
+        'error': 'Errore interno durante l’analisi',
+      }),
+      headers: {
+        HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
+      },
+    );
+  }
 }
 
 Middleware _corsMiddleware() {
   return (Handler innerHandler) {
     return (Request request) async {
       if (request.method == 'OPTIONS') {
-        return Response.ok('', headers: _corsHeaders);
+        return Response.ok(
+          '',
+          headers: _corsHeaders,
+        );
       }
 
       final Response response = await innerHandler(request);
@@ -95,7 +166,13 @@ Future<void> main(List<String> args) async {
     Platform.environment['PORT'] ?? '8080',
   );
 
-  final HttpServer server = await serve(handler, ip, port);
+  final HttpServer server = await serve(
+    handler,
+    ip,
+    port,
+  );
 
-  print('AngurIA backend listening on port ${server.port}');
+  print(
+    'AngurIA backend listening on port ${server.port}',
+  );
 }

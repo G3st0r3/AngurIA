@@ -50,7 +50,18 @@ class _CameraScreenState extends State<CameraScreen> {
     });
 
     try {
-      final result = await _aiService.analyzeImage();
+      final Uint8List? imageBytes = _imageBytes;
+
+if (imageBytes == null) {
+  setState(() {
+    _analysisResult = 'Seleziona prima una foto.';
+    _isLoading = false;
+  });
+  return;
+}
+
+final Map<String, dynamic> result =
+    await _aiService.analyzeImage(imageBytes);
 
       if (!mounted) return;
 
