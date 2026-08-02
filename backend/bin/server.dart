@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:backend/models/analysis_result.dart';
+import 'package:backend/services/image_analysis_service.dart';
 import 'package:backend/services/watermelon_analyzer_service.dart';
 import 'package:image/image.dart' as img;
 import 'package:shelf/shelf.dart';
@@ -11,6 +12,9 @@ import 'package:shelf_router/shelf_router.dart';
 
 const WatermelonAnalyzerService _analyzerService =
     WatermelonAnalyzerService();
+
+const ImageAnalysisService _imageAnalysisService =
+    ImageAnalysisService();
 
 const Map<String, String> _corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -22,14 +26,26 @@ final Router _router = Router()
   ..get('/', _rootHandler)
   ..post('/analyze', _analyzeHandler);
 
-Response _rootHandler(Request request) {
-  return Response.ok(
-    jsonEncode({
-      'app': 'AngurIA Backend',
-      'status': 'online',
-    }),
+Response _jsonResponse(
+  int statusCode,
+  Map<String, dynamic> body,
+) {
+  return Response(
+    statusCode,
+    body: jsonEncode(body),
     headers: {
       HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
+    },
+  );
+}
+
+Response _rootHandler(Request request) {
+  return _jsonResponse(
+    HttpStatus.ok,
+    {
+      'app': 'AngurIA Backend',
+      'status': 'online',
+      'version': '0.2.0',
     },
   );
 }
@@ -38,95 +54,113 @@ Future<Response> _analyzeHandler(Request request) async {
   final String requestBody = await request.readAsString();
 
   if (requestBody.isEmpty) {
-    return Response(
+    return _jsonResponse(
       HttpStatus.badRequest,
-      body: jsonEncode({
+      {
         'error': 'Corpo della richiesta vuoto',
-      }),
-      headers: {
-        HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
       },
     );
   }
 
   try {
-    final Map<String, dynamic> body =
-        jsonDecode(requestBody) as Map<String, dynamic>;
+    final Object? decodedBody = jsonDecode(requestBody);
 
-    final Object? imageValue = body['image'];
+    if (decodedBody is! Map<String, dynamic>) {
+      return _jsonResponse(
+        HttpStatus.badRequest,
+        {
+          'error': 'Formato della richiesta non valido',
+        },
+      );
+    }
+
+    final Object? imageValue = decodedBody['image'];
 
     if (imageValue is! String || imageValue.isEmpty) {
-      return Response(
+      return _jsonResponse(
         HttpStatus.badRequest,
-        body: jsonEncode({
+        {
           'error': 'Immagine mancante nella richiesta',
-        }),
-        headers: {
-          HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
         },
       );
     }
 
     final String imageBase64 = imageValue;
 
-    print(
-      'Dimensione Base64: ${imageBase64.length} caratteri',
-    );
-
     final Uint8List imageBytes = base64Decode(imageBase64);
-
-    print(
-      'Dimensione immagine: ${imageBytes.length} byte',
-    );
 
     final img.Image? decodedImage = img.decodeImage(imageBytes);
 
     if (decodedImage == null) {
-      return Response(
+      return _jsonResponse(
         HttpStatus.badRequest,
-        body: jsonEncode({
+        {
           'error': 'Il file ricevuto non è un’immagine valida',
-        }),
-        headers: {
-          HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
         },
       );
     }
 
+    final ImageAnalysisData imageAnalysis =
+        _imageAnalysisService.analyze(decodedImage);
+
     print(
       'Immagine valida: '
-      '${decodedImage.width}x${decodedImage.height} pixel',
+      '${imageAnalysis.width}x${imageAnalysis.height} pixel',
     );
 
-    final AnalysisResult simulatedResult =
-        _analyzerService.analyzeSimulated();
+    print(
+      'Luminosità media: '
+      '${imageAnalysis.averageBrightness.toStringAsFixed(2)}',
+    );
 
-    return Response.ok(
-      jsonEncode(simulatedResult.toJson()),
-      headers: {
-        HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
+    print(
+      'RGB medio: '
+      'R ${imageAnalysis.averageRed.toStringAsFixed(2)}, '
+      'G ${imageAnalysis.averageGreen.toStringAsFixed(2)}, '
+      'B ${imageAnalysis.averageBlue.toStringAsFixed(2)}',
+    );
+
+    print(
+      'Colore dominante: ${imageAnalysis.dominantColor}',
+    );
+print(
+  'Contrasto luminosità: '
+  '${imageAnalysis.brightnessContrast.toStringAsFixed(2)}',
+);
+
+print(
+  'Pixel verdi: '
+  '${imageAnalysis.greenPixelPercentage.toStringAsFixed(2)}%',
+);
+
+print(
+  'Qualità foto: ${imageAnalysis.photoQuality}',
+);
+    final AnalysisResult simulatedResult =
+    _analyzerService.analyze(imageAnalysis);
+
+    return _jsonResponse(
+      HttpStatus.ok,
+      {
+        ...simulatedResult.toJson(),
+        'imageAnalysis': imageAnalysis.toJson(),
       },
     );
   } on FormatException {
-    return Response(
+    return _jsonResponse(
       HttpStatus.badRequest,
-      body: jsonEncode({
+      {
         'error': 'JSON o immagine Base64 non validi',
-      }),
-      headers: {
-        HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
       },
     );
-  } catch (error) {
+  } catch (error, stackTrace) {
     print('Errore durante l’analisi: $error');
+    print(stackTrace);
 
-    return Response(
+    return _jsonResponse(
       HttpStatus.internalServerError,
-      body: jsonEncode({
+      {
         'error': 'Errore interno durante l’analisi',
-      }),
-      headers: {
-        HttpHeaders.contentTypeHeader: ContentType.json.mimeType,
       },
     );
   }
@@ -173,6 +207,6 @@ Future<void> main(List<String> args) async {
   );
 
   print(
-    'AngurIA backend listening on port ${server.port}',
+    'AngurIA backend v0.2.0 listening on port ${server.port}',
   );
 }
