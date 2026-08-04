@@ -23,11 +23,16 @@ class BoundingBox {
 
 class DetectionResult {
   final bool found;
+
+  final String label;
+
   final double confidence;
+
   final BoundingBox? boundingBox;
 
   const DetectionResult({
     required this.found,
+    required this.label,
     required this.confidence,
     required this.boundingBox,
   });
@@ -35,11 +40,13 @@ class DetectionResult {
   Map<String, dynamic> toJson() {
     return {
       'found': found,
+      'label': label,
       'confidence': confidence,
       'boundingBox': boundingBox?.toJson(),
     };
   }
 }
+
 
 class WatermelonDetector {
   const WatermelonDetector();
@@ -56,6 +63,7 @@ class WatermelonDetector {
 
     return DetectionResult(
       found: true,
+      label: 'watermelon',
       confidence: 0.98,
       boundingBox: BoundingBox(
         x: x,
