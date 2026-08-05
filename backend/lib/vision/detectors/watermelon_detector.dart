@@ -1,5 +1,3 @@
-import 'dart:math';
-
 class BoundingBox {
   final int x;
   final int y;
@@ -28,8 +26,6 @@ class DetectionResult {
   final String label;
   final double confidence;
   final BoundingBox? boundingBox;
-
-  /// Tempo impiegato dal detector (millisecondi)
   final int inferenceTimeMs;
 
   const DetectionResult({
@@ -66,8 +62,7 @@ class WatermelonDetector {
     final int x = ((imageWidth - boxWidth) / 2).round();
     final int y = ((imageHeight - boxHeight) / 2).round();
 
-    // Simuliamo un piccolo tempo di elaborazione
-    await Future.delayed(
+    await Future<void>.delayed(
       const Duration(milliseconds: 20),
     );
 
@@ -77,13 +72,13 @@ class WatermelonDetector {
       found: true,
       label: 'watermelon',
       confidence: 0.98,
-      inferenceTimeMs: stopwatch.elapsedMilliseconds,
       boundingBox: BoundingBox(
         x: x,
         y: y,
         width: boxWidth,
         height: boxHeight,
       ),
+      inferenceTimeMs: stopwatch.elapsedMilliseconds,
     );
   }
 }
