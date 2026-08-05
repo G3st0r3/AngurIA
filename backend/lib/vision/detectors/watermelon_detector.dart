@@ -1,3 +1,5 @@
+import 'dart:math';
+
 class BoundingBox {
   final int x;
   final int y;
@@ -23,18 +25,19 @@ class BoundingBox {
 
 class DetectionResult {
   final bool found;
-
   final String label;
-
   final double confidence;
-
   final BoundingBox? boundingBox;
+
+  /// Tempo impiegato dal detector (millisecondi)
+  final int inferenceTimeMs;
 
   const DetectionResult({
     required this.found,
     required this.label,
     required this.confidence,
     required this.boundingBox,
+    required this.inferenceTimeMs,
   });
 
   Map<String, dynamic> toJson() {
@@ -43,10 +46,10 @@ class DetectionResult {
       'label': label,
       'confidence': confidence,
       'boundingBox': boundingBox?.toJson(),
+      'inferenceTimeMs': inferenceTimeMs,
     };
   }
 }
-
 
 class WatermelonDetector {
   const WatermelonDetector();
@@ -55,16 +58,26 @@ class WatermelonDetector {
     required int imageWidth,
     required int imageHeight,
   }) async {
+    final Stopwatch stopwatch = Stopwatch()..start();
+
     final int boxWidth = (imageWidth * 0.70).round();
     final int boxHeight = (imageHeight * 0.70).round();
 
     final int x = ((imageWidth - boxWidth) / 2).round();
     final int y = ((imageHeight - boxHeight) / 2).round();
 
+    // Simuliamo un piccolo tempo di elaborazione
+    await Future.delayed(
+      const Duration(milliseconds: 20),
+    );
+
+    stopwatch.stop();
+
     return DetectionResult(
       found: true,
       label: 'watermelon',
       confidence: 0.98,
+      inferenceTimeMs: stopwatch.elapsedMilliseconds,
       boundingBox: BoundingBox(
         x: x,
         y: y,
