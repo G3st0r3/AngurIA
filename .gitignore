@@ -41,3 +41,13 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# AngurIA AI service
+ai_service/.venv/
+ai_service/runs/
+runs/
+*.pt
+__pycache__/
+*.pyc
+
+*.cache
