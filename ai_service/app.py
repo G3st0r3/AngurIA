@@ -16,9 +16,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from ultralytics import YOLO
 
 
-DEFAULT_MODEL_PATH = Path(
-    "/Users/giannimelfi/Projects/anguria/"
-    "ai_service/runs/watermelon_v1/weights/best.pt"
+BASE_DIR = Path(__file__).resolve().parent
+
+DEFAULT_MODEL_PATH = (
+    BASE_DIR
+    / "runs"
+    / "watermelon_v1"
+    / "weights"
+    / "best.pt"
 )
 
 MODEL_PATH = Path(
