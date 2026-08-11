@@ -3,6 +3,7 @@ import os
 import shutil
 import tempfile
 import time
+import psycopg
 from intelligence.real_quality import (
     calculate_prediction_error,
     calculate_real_quality_score,
@@ -52,7 +53,47 @@ app.add_middleware(
 
 
 model: Optional[YOLO] = None
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    "",
+).strip()
 
+
+def init_database():
+    if not DATABASE_URL:
+        print(
+            "ℹ️ DATABASE_URL non configurato: "
+            "PostgreSQL disattivato"
+        )
+        return
+
+    try:
+        with psycopg.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS analyses (
+                        id TEXT PRIMARY KEY,
+                        payload JSONB NOT NULL,
+                        status TEXT NOT NULL
+                            DEFAULT 'analysis_saved',
+                        created_at TIMESTAMPTZ NOT NULL
+                            DEFAULT NOW(),
+                        updated_at TIMESTAMPTZ NOT NULL
+                            DEFAULT NOW()
+                    )
+                    """
+                )
+
+        print(
+            "✅ PostgreSQL AngurIA pronto"
+        )
+
+    except Exception as error:
+        print(
+            "⚠️ PostgreSQL non disponibile: "
+            f"{error}"
+        )
 
 @app.on_event("startup")
 def load_model():
@@ -68,7 +109,7 @@ def load_model():
     model = YOLO(str(MODEL_PATH))
 
     print("✅ Modello AngurIA caricato correttamente")
-
+    init_database()
 
 @app.get("/health")
 def health():
@@ -483,6 +524,54 @@ def save_analysis(payload: AnalysisSaveRequest):
             ensure_ascii=False,
         )
 
+    if DATABASE_URL:
+        try:
+            with psycopg.connect(DATABASE_URL) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        INSERT INTO analyses (
+                            id,
+                            payload,
+                            status,
+                            created_at,
+                            updated_at
+                        )
+                        VALUES (
+                            %s,
+                            %s::jsonb,
+                            %s,
+                            %s,
+                            %s
+                        )
+                        ON CONFLICT (id)
+                        DO UPDATE SET
+                            payload = EXCLUDED.payload,
+                            status = EXCLUDED.status,
+                            updated_at = EXCLUDED.updated_at
+                        """,
+                        (
+                            analysis_id,
+                            json.dumps(
+                                data,
+                                ensure_ascii=False,
+                            ),
+                            data["status"],
+                            timestamp,
+                            timestamp,
+                        ),
+                    )
+
+            print(
+                f"✅ Analisi PostgreSQL salvata: "
+                f"{analysis_id}"
+            )
+
+        except Exception as error:
+            print(
+                "⚠️ Salvataggio PostgreSQL "
+                f"non riuscito: {error}"
+            )
     return {
         "saved": True,
         "analysisId": analysis_id,
