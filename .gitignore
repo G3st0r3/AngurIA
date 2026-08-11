@@ -44,9 +44,18 @@ app.*.map.json
 
 # AngurIA AI service
 ai_service/.venv/
-ai_service/runs/
-runs/
+# Ignora i file di training, ma conserva il modello Beta
+ai_service/runs/*
+/runs/
 *.pt
+
+!ai_service/runs/watermelon_v1/
+ai_service/runs/watermelon_v1/*
+
+!ai_service/runs/watermelon_v1/weights/
+ai_service/runs/watermelon_v1/weights/*
+
+!ai_service/runs/watermelon_v1/weights/best.pt
 __pycache__/
 *.pyc
 
