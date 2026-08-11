@@ -648,6 +648,40 @@ def save_analysis_feedback(
             ensure_ascii=False,
         )
 
+    if DATABASE_URL:
+        try:
+            with psycopg.connect(DATABASE_URL) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        UPDATE analyses
+                        SET
+                            payload = %s::jsonb,
+                            status = %s,
+                            updated_at = NOW()
+                        WHERE id = %s
+                        """,
+                        (
+                            json.dumps(
+                                data,
+                                ensure_ascii=False,
+                            ),
+                            data["status"],
+                            analysis_id,
+                        ),
+                    )
+
+            print(
+                f"✅ Feedback PostgreSQL salvato: "
+                f"{analysis_id}"
+            )
+
+        except Exception as error:
+            print(
+                "⚠️ Salvataggio feedback PostgreSQL "
+                f"non riuscito: {error}"
+            )
+            
     return {
         "saved": True,
         "analysisId": analysis_id,
