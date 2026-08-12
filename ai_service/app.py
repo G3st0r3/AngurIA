@@ -600,18 +600,58 @@ def save_analysis_feedback(
         / f"{analysis_id}.json"
     )
 
-    if not analysis_path.exists():
+    if analysis_path.exists():
+        with analysis_path.open(
+            "r",
+            encoding="utf-8",
+        ) as file:
+            data = json.load(file)
+
+    elif DATABASE_URL:
+        try:
+            with psycopg.connect(DATABASE_URL) as conn:
+                with conn.cursor() as cursor:
+                    cursor.execute(
+                        """
+                        SELECT payload::text
+                        FROM analyses
+                        WHERE id = %s
+                        """,
+                        (analysis_id,),
+                    )
+                    row = cursor.fetchone()
+
+            if row is None:
+                raise HTTPException(
+                    status_code=404,
+                    detail="Analisi non trovata",
+                )
+
+            data = json.loads(row[0])
+
+            print(
+                f"✅ Analisi recuperata da PostgreSQL: "
+                f"{analysis_id}"
+            )
+
+        except HTTPException:
+            raise
+
+        except Exception as error:
+            print(
+                "⚠️ Lettura PostgreSQL non riuscita: "
+                f"{error}"
+            )
+            raise HTTPException(
+                status_code=500,
+                detail="Errore recupero analisi",
+            )
+
+    else:
         raise HTTPException(
             status_code=404,
             detail="Analisi non trovata",
         )
-
-    with analysis_path.open(
-        "r",
-        encoding="utf-8",
-    ) as file:
-        data = json.load(file)
-
         data["feedback"] = {
         "sweetness": payload.sweetness,
         "crunchiness": payload.crunchiness,
@@ -681,7 +721,7 @@ def save_analysis_feedback(
                 "⚠️ Salvataggio feedback PostgreSQL "
                 f"non riuscito: {error}"
             )
-            
+
     return {
         "saved": True,
         "analysisId": analysis_id,
