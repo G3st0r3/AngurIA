@@ -10,27 +10,29 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _betaFriendIdController =
+  final TextEditingController _betaFriendController =
       TextEditingController();
+
+  String _betaFriendId = '';
 
   @override
   void dispose() {
-    _betaFriendIdController.dispose();
+    _betaFriendController.dispose();
     super.dispose();
   }
 
-  void _startTest() {
-    final betaFriendId =
-        _betaFriendIdController.text.trim().toUpperCase();
+  void _updateBetaFriendId(String value) {
+    setState(() {
+      _betaFriendId = value.trim().toUpperCase();
+    });
+  }
 
-    if (betaFriendId.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text(
-            'Inserisci il tuo codice Beta Friend.',
-          ),
-        ),
-      );
+  bool get _isBetaFriendIdValid {
+    return RegExp(r'^BF-\d{3}$').hasMatch(_betaFriendId);
+  }
+
+  void _startTest() {
+    if (!_isBetaFriendIdValid) {
       return;
     }
 
@@ -38,7 +40,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context,
       MaterialPageRoute(
         builder: (_) => CameraScreen(
-          betaFriendId: betaFriendId,
+          betaFriendId: _betaFriendId,
         ),
       ),
     );
@@ -107,8 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   const SizedBox(height: 22),
 
                   const Text(
-                    'Possiamo prevedere '
-                    'quanto sarà buona '
+                    'Possiamo prevedere quanto sarà buona '
                     'un’anguria prima di aprirla?',
                     textAlign: TextAlign.center,
                     style: TextStyle(
@@ -123,10 +124,9 @@ class _HomeScreenState extends State<HomeScreen> {
                   const Text(
                     'Stai partecipando alla beta '
                     'sperimentale di AngurIA.\n'
-                    'La tua prova ci aiuterà a '
-                    'confrontare la previsione '
-                    'dell’AI con la qualità reale '
-                    'dell’anguria dopo l’apertura.',
+                    'La tua prova ci aiuterà a confrontare '
+                    'la previsione dell’AI con la qualità '
+                    'reale dell’anguria dopo l’apertura.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
                       fontSize: 16,
@@ -157,16 +157,15 @@ class _HomeScreenState extends State<HomeScreen> {
                           _GuideRow(
                             number: '1',
                             text:
-                                'Fotografa l’anguria '
-                                'intera con buona luce.',
+                                'Fotografa l’anguria intera '
+                                'con buona luce.',
                           ),
                           SizedBox(height: 14),
                           _GuideRow(
                             number: '2',
                             text:
-                                'Fai analizzare la foto '
-                                'prima di aprire '
-                                'l’anguria.',
+                                'Fai analizzare la foto prima '
+                                'di aprire l’anguria.',
                           ),
                           SizedBox(height: 14),
                           _GuideRow(
@@ -175,8 +174,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 'Dopo averla aperta e '
                                 'assaggiata, usa '
                                 '“Com’è davvero?” per '
-                                'registrare il risultato '
-                                'reale.',
+                                'registrare il risultato reale.',
                           ),
                         ],
                       ),
@@ -203,10 +201,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         SizedBox(width: 10),
                         Expanded(
                           child: Text(
-                            'Più la foto è chiara e '
-                            'completa, più il test '
-                            'sarà utile per migliorare '
-                            'AngurIA.',
+                            'Più la foto è chiara e completa, '
+                            'più il test sarà utile per '
+                            'migliorare AngurIA.',
                             style: TextStyle(height: 1.4),
                           ),
                         ),
@@ -216,47 +213,46 @@ class _HomeScreenState extends State<HomeScreen> {
 
                   const SizedBox(height: 24),
 
+                  // BETA FRIEND ID
                   TextField(
-                    controller: _betaFriendIdController,
+                    controller: _betaFriendController,
                     textCapitalization:
                         TextCapitalization.characters,
+                    onChanged: _updateBetaFriendId,
                     decoration: InputDecoration(
                       labelText: 'Codice Beta Friend',
-                      hintText: 'Es. BF-001',
+                      hintText: 'BF-001',
                       prefixIcon:
                           const Icon(Icons.badge_outlined),
-                      filled: true,
-                      fillColor: Colors.white,
+                      helperText:
+                          'Inserisci il codice ricevuto '
+                          'per partecipare alla prova.',
+                      errorText:
+                          _betaFriendId.isNotEmpty &&
+                                  !_isBetaFriendIdValid
+                              ? 'Formato richiesto: BF-001'
+                              : null,
                       border: OutlineInputBorder(
                         borderRadius:
                             BorderRadius.circular(14),
                       ),
                     ),
-                    onSubmitted: (_) => _startTest(),
                   ),
 
-                  const SizedBox(height: 8),
-
-                  const Text(
-                    'Inserisci il codice che hai ricevuto '
-                    'con l’invito alla Beta Friends.',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      color: Colors.black54,
-                      fontSize: 12,
-                    ),
-                  ),
-
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 22),
 
                   ElevatedButton.icon(
-                    onPressed: _startTest,
+                    onPressed:
+                        _isBetaFriendIdValid
+                            ? _startTest
+                            : null,
                     icon: const Icon(
                       Icons.camera_alt_outlined,
                     ),
                     label: const Padding(
-                      padding:
-                          EdgeInsets.symmetric(vertical: 4),
+                      padding: EdgeInsets.symmetric(
+                        vertical: 4,
+                      ),
                       child: Text(
                         'Inizia il test',
                         style: TextStyle(
@@ -267,18 +263,16 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
 
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 16),
 
                   const Text(
                     'Versione Beta Friends • '
-                    'I risultati sono sperimentali '
-                    'e servono a migliorare '
-                    'il sistema.',
+                    'I risultati sono sperimentali e '
+                    'servono a migliorare il sistema.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: Colors.black45,
                       fontSize: 12,
-                      height: 1.4,
+                      color: Colors.black45,
                     ),
                   ),
 
@@ -308,8 +302,8 @@ class _GuideRow extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
-          width: 30,
-          height: 30,
+          width: 28,
+          height: 28,
           alignment: Alignment.center,
           decoration: const BoxDecoration(
             color: Color(0xFFE1F0DF),
@@ -325,11 +319,13 @@ class _GuideRow extends StatelessWidget {
         ),
         const SizedBox(width: 12),
         Expanded(
-          child: Text(
-            text,
-            style: const TextStyle(
-              fontSize: 15,
-              height: 1.4,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 4),
+            child: Text(
+              text,
+              style: const TextStyle(
+                height: 1.4,
+              ),
             ),
           ),
         ),
