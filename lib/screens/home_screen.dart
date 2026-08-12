@@ -23,27 +23,52 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _prepareBetaFriend() async {
-    final prefs = await SharedPreferences.getInstance();
+  // Fallback immediato:
+  // il tester può iniziare anche se lo storage mobile
+  // è lento o non disponibile.
+  final fallbackId = _generateBetaFriendId();
 
-    String? betaFriendId =
+  if (mounted) {
+    setState(() {
+      _betaFriendId = fallbackId;
+      _isPreparing = false;
+    });
+  }
+
+  // Prova poi a recuperare o salvare
+  // l'identificativo persistente nel browser.
+  try {
+    final prefs = await SharedPreferences.getInstance()
+        .timeout(const Duration(seconds: 2));
+
+    String? storedId =
         prefs.getString('anguria_beta_friend_id');
 
-    if (betaFriendId == null || betaFriendId.isEmpty) {
-      betaFriendId = _generateBetaFriendId();
+    if (storedId == null || storedId.isEmpty) {
+      storedId = fallbackId;
 
-      await prefs.setString(
-        'anguria_beta_friend_id',
-        betaFriendId,
-      );
+      await prefs
+          .setString(
+            'anguria_beta_friend_id',
+            storedId,
+          )
+          .timeout(const Duration(seconds: 2));
     }
 
     if (!mounted) return;
 
     setState(() {
-      _betaFriendId = betaFriendId;
-      _isPreparing = false;
+      _betaFriendId = storedId;
     });
+  } catch (error) {
+    debugPrint(
+      'Beta Friend storage non disponibile: $error',
+    );
+
+    // Nessun blocco:
+    // resta valido l'ID generato inizialmente.
   }
+}
 
   String _generateBetaFriendId() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
