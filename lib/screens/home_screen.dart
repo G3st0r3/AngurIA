@@ -1,4 +1,7 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'camera_screen.dart';
 
@@ -10,37 +13,60 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final TextEditingController _betaFriendController =
-      TextEditingController();
-
-  String _betaFriendId = '';
+  String? _betaFriendId;
+  bool _isPreparing = true;
 
   @override
-  void dispose() {
-    _betaFriendController.dispose();
-    super.dispose();
+  void initState() {
+    super.initState();
+    _prepareBetaFriend();
   }
 
-  void _updateBetaFriendId(String value) {
+  Future<void> _prepareBetaFriend() async {
+    final prefs = await SharedPreferences.getInstance();
+
+    String? betaFriendId =
+        prefs.getString('anguria_beta_friend_id');
+
+    if (betaFriendId == null || betaFriendId.isEmpty) {
+      betaFriendId = _generateBetaFriendId();
+
+      await prefs.setString(
+        'anguria_beta_friend_id',
+        betaFriendId,
+      );
+    }
+
+    if (!mounted) return;
+
     setState(() {
-      _betaFriendId = value.trim().toUpperCase();
+      _betaFriendId = betaFriendId;
+      _isPreparing = false;
     });
   }
 
-  bool get _isBetaFriendIdValid {
-    return RegExp(r'^BF-\d{3}$').hasMatch(_betaFriendId);
+  String _generateBetaFriendId() {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    final random = Random.secure();
+
+    final code = List.generate(
+      6,
+      (_) => chars[random.nextInt(chars.length)],
+    ).join();
+
+    return 'BF-$code';
   }
 
   void _startTest() {
-    if (!_isBetaFriendIdValid) {
-      return;
-    }
+    final betaFriendId = _betaFriendId;
+
+    if (betaFriendId == null) return;
 
     Navigator.push(
       context,
       MaterialPageRoute(
         builder: (_) => CameraScreen(
-          betaFriendId: _betaFriendId,
+          betaFriendId: betaFriendId,
         ),
       ),
     );
@@ -204,58 +230,40 @@ class _HomeScreenState extends State<HomeScreen> {
                             'Più la foto è chiara e completa, '
                             'più il test sarà utile per '
                             'migliorare AngurIA.',
-                            style: TextStyle(height: 1.4),
+                            style: TextStyle(
+                              height: 1.4,
+                            ),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 24),
-
-                  // BETA FRIEND ID
-                  TextField(
-                    controller: _betaFriendController,
-                    textCapitalization:
-                        TextCapitalization.characters,
-                    onChanged: _updateBetaFriendId,
-                    decoration: InputDecoration(
-                      labelText: 'Codice Beta Friend',
-                      hintText: 'BF-001',
-                      prefixIcon:
-                          const Icon(Icons.badge_outlined),
-                      helperText:
-                          'Inserisci il codice ricevuto '
-                          'per partecipare alla prova.',
-                      errorText:
-                          _betaFriendId.isNotEmpty &&
-                                  !_isBetaFriendIdValid
-                              ? 'Formato richiesto: BF-001'
-                              : null,
-                      border: OutlineInputBorder(
-                        borderRadius:
-                            BorderRadius.circular(14),
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 22),
+                  const SizedBox(height: 28),
 
                   ElevatedButton.icon(
                     onPressed:
-                        _isBetaFriendIdValid
-                            ? _startTest
-                            : null,
-                    icon: const Icon(
-                      Icons.camera_alt_outlined,
-                    ),
-                    label: const Padding(
-                      padding: EdgeInsets.symmetric(
+                        _isPreparing ? null : _startTest,
+                    icon: _isPreparing
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Icon(
+                            Icons.camera_alt_outlined,
+                          ),
+                    label: Padding(
+                      padding: const EdgeInsets.symmetric(
                         vertical: 4,
                       ),
                       child: Text(
-                        'Inizia il test',
-                        style: TextStyle(
+                        _isPreparing
+                            ? 'Preparazione...'
+                            : 'Inizia il test',
+                        style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
                         ),
