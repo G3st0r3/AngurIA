@@ -10,7 +10,12 @@ import '../services/analysis_history_service.dart';
 import 'feedback_screen.dart';
 
 class CameraScreen extends StatefulWidget {
-  const CameraScreen({super.key});
+  final String betaFriendId;
+
+  const CameraScreen({
+    super.key,
+    required this.betaFriendId,
+  });
 
   @override
   State<CameraScreen> createState() => _CameraScreenState();
@@ -242,6 +247,8 @@ class _CameraScreenState extends State<CameraScreen> {
           'advice':
               (result['advice'] as String?) ?? '',
 
+          'betaFriendId': widget.betaFriendId,
+        
           'groundSpot': _groundSpot,
           'peduncle': _peduncle,
           'shape': _shape,

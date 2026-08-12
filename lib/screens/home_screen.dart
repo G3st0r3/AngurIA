@@ -2,8 +2,47 @@ import 'package:flutter/material.dart';
 
 import 'camera_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> {
+  final TextEditingController _betaFriendIdController =
+      TextEditingController();
+
+  @override
+  void dispose() {
+    _betaFriendIdController.dispose();
+    super.dispose();
+  }
+
+  void _startTest() {
+    final betaFriendId =
+        _betaFriendIdController.text.trim().toUpperCase();
+
+    if (betaFriendId.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Inserisci il tuo codice Beta Friend.',
+          ),
+        ),
+      );
+      return;
+    }
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => CameraScreen(
+          betaFriendId: betaFriendId,
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +84,7 @@ class HomeScreen extends StatelessWidget {
 
                   Center(
                     child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 14,
                         vertical: 7,
                       ),
@@ -111,24 +149,18 @@ class HomeScreen extends StatelessWidget {
                             '📸 Come fare una buona prova',
                             style: TextStyle(
                               fontSize: 18,
-                              fontWeight:
-                                  FontWeight.bold,
-                              color:
-                                  Color(0xFF2E7D32),
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF2E7D32),
                             ),
                           ),
-
                           SizedBox(height: 18),
-
                           _GuideRow(
                             number: '1',
                             text:
                                 'Fotografa l’anguria '
                                 'intera con buona luce.',
                           ),
-
                           SizedBox(height: 14),
-
                           _GuideRow(
                             number: '2',
                             text:
@@ -136,9 +168,7 @@ class HomeScreen extends StatelessWidget {
                                 'prima di aprire '
                                 'l’anguria.',
                           ),
-
                           SizedBox(height: 14),
-
                           _GuideRow(
                             number: '3',
                             text:
@@ -177,41 +207,61 @@ class HomeScreen extends StatelessWidget {
                             'completa, più il test '
                             'sarà utile per migliorare '
                             'AngurIA.',
-                            style: TextStyle(
-                              height: 1.4,
-                            ),
+                            style: TextStyle(height: 1.4),
                           ),
                         ),
                       ],
                     ),
                   ),
 
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 24),
+
+                  TextField(
+                    controller: _betaFriendIdController,
+                    textCapitalization:
+                        TextCapitalization.characters,
+                    decoration: InputDecoration(
+                      labelText: 'Codice Beta Friend',
+                      hintText: 'Es. BF-001',
+                      prefixIcon:
+                          const Icon(Icons.badge_outlined),
+                      filled: true,
+                      fillColor: Colors.white,
+                      border: OutlineInputBorder(
+                        borderRadius:
+                            BorderRadius.circular(14),
+                      ),
+                    ),
+                    onSubmitted: (_) => _startTest(),
+                  ),
+
+                  const SizedBox(height: 8),
+
+                  const Text(
+                    'Inserisci il codice che hai ricevuto '
+                    'con l’invito alla Beta Friends.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.black54,
+                      fontSize: 12,
+                    ),
+                  ),
+
+                  const SizedBox(height: 20),
 
                   ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) =>
-                              const CameraScreen(),
-                        ),
-                      );
-                    },
+                    onPressed: _startTest,
                     icon: const Icon(
                       Icons.camera_alt_outlined,
                     ),
                     label: const Padding(
                       padding:
-                          EdgeInsets.symmetric(
-                        vertical: 4,
-                      ),
+                          EdgeInsets.symmetric(vertical: 4),
                       child: Text(
                         'Inizia il test',
                         style: TextStyle(
                           fontSize: 18,
-                          fontWeight:
-                              FontWeight.bold,
+                          fontWeight: FontWeight.bold,
                         ),
                       ),
                     ),
@@ -255,8 +305,7 @@ class _GuideRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      crossAxisAlignment:
-          CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Container(
           width: 30,
@@ -274,9 +323,7 @@ class _GuideRow extends StatelessWidget {
             ),
           ),
         ),
-
         const SizedBox(width: 12),
-
         Expanded(
           child: Text(
             text,

@@ -454,6 +454,7 @@ ANALYSIS_HISTORY_DIR.mkdir(
 class AnalysisSaveRequest(BaseModel):
     score: int
     advice: str
+    betaFriendId: str = ""
 
     groundSpot: str = ""
     peduncle: str = ""
@@ -485,6 +486,7 @@ def save_analysis(payload: AnalysisSaveRequest):
 
         "score": payload.score,
         "advice": payload.advice,
+        "betaFriendId": payload.betaFriendId,
 
         "features": {
             "groundSpot": payload.groundSpot,
