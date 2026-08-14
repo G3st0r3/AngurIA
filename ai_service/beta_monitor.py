@@ -331,6 +331,58 @@ def load_analysis_detail(analysis_id: str):
     }
 
 
+
+def load_high_error_analyses(limit: int = 10):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    payload->>'betaFriendId' AS beta_friend_id,
+                    payload->>'score' AS score,
+                    payload->>'realQualityScore' AS real_quality,
+                    payload->>'predictionError' AS prediction_error,
+                    created_at
+                FROM analyses
+                WHERE
+                    NULLIF(
+                        payload->>'betaFriendId',
+                        ''
+                    ) IS NOT NULL
+                    AND status = 'feedback_completed'
+                    AND payload->>'predictionError'
+                        ~ '^[0-9]+([.][0-9]+)?$'
+                ORDER BY
+                    (payload->>'predictionError')::numeric DESC
+                LIMIT %s
+                """,
+                (limit,),
+            )
+
+            rows = cursor.fetchall()
+
+    result = []
+
+    for row in rows:
+        result.append(
+            {
+                "id": row[0],
+                "betaFriendId": row[1] or "-",
+                "score": row[2] or "-",
+                "realQuality": row[3] or "-",
+                "predictionError": row[4] or "-",
+                "createdAt": (
+                    row[5].strftime("%d/%m/%Y %H:%M")
+                    if row[5]
+                    else "-"
+                ),
+            }
+        )
+
+    return result
+
+
 def metric_card(
     title: str,
     value: str,
@@ -823,6 +875,7 @@ def dashboard():
     try:
         summary = load_summary()
         friends = load_beta_friends()
+        high_errors = load_high_error_analyses()
 
     except Exception as error:
         safe_error = html.escape(
@@ -976,6 +1029,77 @@ def dashboard():
     rows_html = "\n".join(
         table_rows
     )
+
+
+    diagnostic_rows = []
+
+    for item in high_errors:
+        diagnostic_rows.append(
+            f"""
+            <tr>
+                <td>
+                    <a href="/analysis/{html.escape(str(item['id']))}">
+                        {html.escape(str(item['id']))}
+                    </a>
+                </td>
+
+                <td>
+                    {html.escape(str(item['betaFriendId']))}
+                </td>
+
+                <td>{item['score']}</td>
+
+                <td>{item['realQuality']}</td>
+
+                <td>
+                    <strong>{item['predictionError']}</strong>
+                </td>
+
+                <td>{item['createdAt']}</td>
+            </tr>
+            """
+        )
+
+    diagnostic_rows_html = (
+        "\n".join(diagnostic_rows)
+        if diagnostic_rows
+        else """
+            <tr>
+                <td colspan="6">
+                    Nessuna analisi con feedback disponibile.
+                </td>
+            </tr>
+        """
+    )
+
+    diagnostic_html = f"""
+        <div class="table-card">
+            <h2>🔬 Analisi con errore più alto</h2>
+
+            <p>
+                Casi Beta ordinati dalla maggiore
+                differenza tra previsione AngurIA
+                e qualità reale.
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Analisi</th>
+                        <th>Tester</th>
+                        <th>AngurIA</th>
+                        <th>Reale</th>
+                        <th>Errore</th>
+                        <th>Data</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {diagnostic_rows_html}
+                </tbody>
+            </table>
+        </div>
+    """
 
     return HTMLResponse(
         f"""
@@ -1153,6 +1277,8 @@ def dashboard():
             </table>
 
         </div>
+        {diagnostic_html}
+
         {historical_html}
         <div class="footer">
             AngurIA Beta Monitor •
