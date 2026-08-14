@@ -291,6 +291,46 @@ def load_friend_analyses(beta_friend_id: str):
     return result
 
 
+
+def load_analysis_detail(analysis_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    created_at,
+                    updated_at,
+                    status,
+                    payload
+                FROM analyses
+                WHERE id = %s
+                """,
+                (analysis_id,),
+            )
+
+            row = cursor.fetchone()
+
+    if row is None:
+        return None
+
+    return {
+        "id": row[0],
+        "createdAt": (
+            row[1].strftime("%d/%m/%Y %H:%M")
+            if row[1]
+            else "-"
+        ),
+        "updatedAt": (
+            row[2].strftime("%d/%m/%Y %H:%M")
+            if row[2]
+            else "-"
+        ),
+        "status": row[3] or "-",
+        "payload": row[4] or {},
+    }
+
+
 def metric_card(
     title: str,
     value: str,
@@ -327,6 +367,281 @@ def health():
 
 
 
+
+@app.get(
+    "/analysis/{analysis_id}",
+    response_class=HTMLResponse,
+)
+def analysis_detail(analysis_id: str):
+    if not DATABASE_URL:
+        return HTMLResponse(
+            "<h1>DATABASE_URL non configurato</h1>",
+            status_code=503,
+        )
+
+    try:
+        item = load_analysis_detail(analysis_id)
+    except Exception as error:
+        return HTMLResponse(
+            f"<h1>Errore database</h1><p>{html.escape(str(error))}</p>",
+            status_code=500,
+        )
+
+    if item is None:
+        return HTMLResponse(
+            "<h1>Analisi non trovata</h1>",
+            status_code=404,
+        )
+
+    payload = item["payload"]
+
+    beta_friend_id = html.escape(
+        str(payload.get("betaFriendId") or "-")
+    )
+
+    score = payload.get("score", "-")
+    real_quality = payload.get("realQualityScore", "-")
+    prediction_error = payload.get("predictionError", "-")
+    advice = html.escape(str(payload.get("advice") or "-"))
+
+    features = payload.get("features") or {}
+    detector = payload.get("detector") or {}
+    feedback = payload.get("feedback") or {}
+
+    reasons = payload.get("reasons") or []
+    warnings = payload.get("warnings") or []
+
+    reasons_html = "".join(
+        f"<li>{html.escape(str(value))}</li>"
+        for value in reasons
+    ) or "<li>-</li>"
+
+    warnings_html = "".join(
+        f"<li>{html.escape(str(value))}</li>"
+        for value in warnings
+    ) or "<li>-</li>"
+
+    feature_rows = "".join(
+        f"""
+        <tr>
+            <td>{html.escape(str(key))}</td>
+            <td>{html.escape(str(value or '-'))}</td>
+        </tr>
+        """
+        for key, value in features.items()
+    )
+
+    feedback_rows = "".join(
+        f"""
+        <tr>
+            <td>{html.escape(str(key))}</td>
+            <td>{html.escape(str(value if value is not None else '-'))}</td>
+        </tr>
+        """
+        for key, value in feedback.items()
+    ) or """
+        <tr>
+            <td colspan="2">Nessun feedback disponibile</td>
+        </tr>
+    """
+
+    return HTMLResponse(
+        f"""
+<!DOCTYPE html>
+<html lang="it">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+
+    <title>Dettaglio analisi AngurIA</title>
+
+    <style>
+        body {{
+            margin: 0;
+            background: #f4f8f3;
+            color: #263238;
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }}
+
+        .container {{
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 20px 60px;
+        }}
+
+        h1, h2 {{
+            color: #2e7d32;
+        }}
+
+        a {{
+            color: #2e7d32;
+            text-decoration: none;
+            font-weight: 600;
+        }}
+
+        .back {{
+            display: inline-block;
+            margin-bottom: 20px;
+        }}
+
+        .grid {{
+            display: grid;
+            grid-template-columns:
+                repeat(auto-fit, minmax(220px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }}
+
+        .card {{
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow:
+                0 3px 14px
+                rgba(0, 0, 0, 0.06);
+        }}
+
+        .metric {{
+            font-size: 30px;
+            font-weight: 800;
+            color: #2e7d32;
+        }}
+
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+        }}
+
+        td, th {{
+            padding: 10px;
+            border-bottom: 1px solid #edf2ed;
+            text-align: left;
+        }}
+
+        .muted {{
+            color: #78909c;
+            font-size: 13px;
+        }}
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <a class="back" href="/tester/{beta_friend_id}">
+            ← Torna al tester
+        </a>
+
+        <h1>🍉 Dettaglio analisi</h1>
+
+        <div class="muted">
+            {html.escape(str(item['id']))}
+            • {item['createdAt']}
+            • {html.escape(str(item['status']))}
+        </div>
+
+        <div class="grid">
+
+            <div class="card">
+                <div>AngurIA Score</div>
+                <div class="metric">{score}</div>
+            </div>
+
+            <div class="card">
+                <div>Qualità reale</div>
+                <div class="metric">{real_quality}</div>
+            </div>
+
+            <div class="card">
+                <div>Errore previsione</div>
+                <div class="metric">{prediction_error}</div>
+            </div>
+
+            <div class="card">
+                <div>Beta Friend</div>
+                <div class="metric" style="font-size:22px;">
+                    {beta_friend_id}
+                </div>
+            </div>
+
+        </div>
+
+        <div class="card">
+            <h2>Verdetto AngurIA</h2>
+            <p>{advice}</p>
+        </div>
+
+        <div class="card">
+            <h2>Caratteristiche osservate</h2>
+            <table>
+                <tbody>
+                    {feature_rows}
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Detector</h2>
+            <table>
+                <tbody>
+                    <tr>
+                        <td>Rilevato</td>
+                        <td>{html.escape(str(detector.get('found', '-')))}</td>
+                    </tr>
+                    <tr>
+                        <td>Confidenza</td>
+                        <td>{html.escape(str(detector.get('confidence', '-')))}</td>
+                    </tr>
+                    <tr>
+                        <td>Label</td>
+                        <td>{html.escape(str(detector.get('label', '-')))}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Punti favorevoli</h2>
+            <ul>
+                {reasons_html}
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>Avvertenze</h2>
+            <ul>
+                {warnings_html}
+            </ul>
+        </div>
+
+        <div class="card">
+            <h2>Com'è davvero?</h2>
+
+            <table>
+                <tbody>
+                    {feedback_rows}
+                </tbody>
+            </table>
+        </div>
+
+    </div>
+</body>
+</html>
+        """
+    )
+
+
+
 @app.get(
     "/tester/{beta_friend_id}",
     response_class=HTMLResponse,
@@ -352,7 +667,11 @@ def tester_detail(beta_friend_id: str):
         rows.append(
             f"""
             <tr>
-                <td>{html.escape(str(item['id']))}</td>
+                <td>
+                    <a href="/analysis/{html.escape(str(item['id']))}">
+                        {html.escape(str(item['id']))}
+                    </a>
+                </td>
                 <td>{item['createdAt']}</td>
                 <td>{item['score']}</td>
                 <td>{item['realQuality']}</td>
