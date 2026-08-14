@@ -119,7 +119,51 @@ def load_summary() -> Dict[str, Any]:
                                 ''
                             ) IS NULL
                             AND status = 'feedback_completed'
-                    ) AS historical_feedback
+                    ) AS historical_feedback,
+
+                    COUNT(*) FILTER (
+                        WHERE
+                            NULLIF(payload->>'betaFriendId', '') IS NOT NULL
+                            AND status = 'feedback_completed'
+                            AND payload->>'score' ~ '^[0-9]+([.][0-9]+)?$'
+                            AND payload->>'realQualityScore' ~ '^[0-9]+([.][0-9]+)?$'
+                            AND ABS(
+                                (payload->>'score')::numeric -
+                                (payload->>'realQualityScore')::numeric
+                            ) <= 10
+                    ) AS accurate_predictions,
+
+                    COUNT(*) FILTER (
+                        WHERE
+                            NULLIF(payload->>'betaFriendId', '') IS NOT NULL
+                            AND status = 'feedback_completed'
+                            AND payload->>'score' ~ '^[0-9]+([.][0-9]+)?$'
+                            AND payload->>'realQualityScore' ~ '^[0-9]+([.][0-9]+)?$'
+                            AND (
+                                (payload->>'score')::numeric <
+                                (payload->>'realQualityScore')::numeric
+                            )
+                            AND ABS(
+                                (payload->>'score')::numeric -
+                                (payload->>'realQualityScore')::numeric
+                            ) > 10
+                    ) AS underestimated_predictions,
+
+                    COUNT(*) FILTER (
+                        WHERE
+                            NULLIF(payload->>'betaFriendId', '') IS NOT NULL
+                            AND status = 'feedback_completed'
+                            AND payload->>'score' ~ '^[0-9]+([.][0-9]+)?$'
+                            AND payload->>'realQualityScore' ~ '^[0-9]+([.][0-9]+)?$'
+                            AND (
+                                (payload->>'score')::numeric >
+                                (payload->>'realQualityScore')::numeric
+                            )
+                            AND ABS(
+                                (payload->>'score')::numeric -
+                                (payload->>'realQualityScore')::numeric
+                            ) > 10
+                    ) AS overestimated_predictions
 
                 FROM analyses
                 """
@@ -147,6 +191,9 @@ def load_summary() -> Dict[str, Any]:
         "avgPredictionError": float(row[5] or 0),
         "historicalAnalyses": int(row[6] or 0),
         "historicalFeedback": int(row[7] or 0),
+        "accuratePredictions": int(row[8] or 0),
+        "underestimatedPredictions": int(row[9] or 0),
+        "overestimatedPredictions": int(row[10] or 0),
     }
 
 def load_beta_friends() -> List[Dict[str, Any]]:
@@ -962,6 +1009,21 @@ def dashboard():
                 f"{summary['avgPredictionError']:.1f}"
             ),
             "Differenza previsione/realtà",
+        ),
+        metric_card(
+            "Previsioni accurate",
+            str(summary["accuratePredictions"]),
+            "Errore massimo ±10 punti",
+        ),
+        metric_card(
+            "Sottostimate",
+            str(summary["underestimatedPredictions"]),
+            "AngurIA più bassa della realtà",
+        ),
+        metric_card(
+            "Sovrastimate",
+            str(summary["overestimatedPredictions"]),
+            "AngurIA più alta della realtà",
         ),
     ]
     )
