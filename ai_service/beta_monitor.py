@@ -372,6 +372,19 @@ def load_high_error_analyses(limit: int = 10):
                 "score": row[2] or "-",
                 "realQuality": row[3] or "-",
                 "predictionError": row[4] or "-",
+                "errorType": (
+                    "accurata"
+                    if row[2] is not None
+                    and row[3] is not None
+                    and abs(float(row[2]) - float(row[3])) <= 10
+                    else (
+                        "sottostimata"
+                        if row[2] is not None
+                        and row[3] is not None
+                        and float(row[2]) < float(row[3])
+                        else "sovrastimata"
+                    )
+                ),
                 "createdAt": (
                     row[5].strftime("%d/%m/%Y %H:%M")
                     if row[5]
@@ -1055,6 +1068,12 @@ def dashboard():
                     <strong>{item['predictionError']}</strong>
                 </td>
 
+                <td>
+                    <strong>
+                        {item['errorType'].capitalize()}
+                    </strong>
+                </td>
+
                 <td>{item['createdAt']}</td>
             </tr>
             """
@@ -1065,7 +1084,7 @@ def dashboard():
         if diagnostic_rows
         else """
             <tr>
-                <td colspan="6">
+                <td colspan="7">
                     Nessuna analisi con feedback disponibile.
                 </td>
             </tr>
@@ -1090,6 +1109,7 @@ def dashboard():
                         <th>AngurIA</th>
                         <th>Reale</th>
                         <th>Errore</th>
+                        <th>Esito</th>
                         <th>Data</th>
                     </tr>
                 </thead>
