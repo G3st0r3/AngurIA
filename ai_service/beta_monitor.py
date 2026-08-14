@@ -242,6 +242,55 @@ def load_beta_friends() -> List[Dict[str, Any]]:
     return result
 
 
+
+def load_friend_analyses(beta_friend_id: str):
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    id,
+                    created_at,
+                    updated_at,
+                    payload->>'score' AS score,
+                    payload->>'realQualityScore' AS real_quality,
+                    payload->>'predictionError' AS prediction_error,
+                    COALESCE(status, '') AS status
+                FROM analyses
+                WHERE payload->>'betaFriendId' = %s
+                ORDER BY created_at DESC
+                """,
+                (beta_friend_id,),
+            )
+
+            rows = cursor.fetchall()
+
+    result = []
+
+    for row in rows:
+        result.append(
+            {
+                "id": row[0],
+                "createdAt": (
+                    row[1].strftime("%d/%m/%Y %H:%M")
+                    if row[1]
+                    else "-"
+                ),
+                "updatedAt": (
+                    row[2].strftime("%d/%m/%Y %H:%M")
+                    if row[2]
+                    else "-"
+                ),
+                "score": row[3] or "-",
+                "realQuality": row[4] or "-",
+                "predictionError": row[5] or "-",
+                "status": row[6] or "-",
+            }
+        )
+
+    return result
+
+
 def metric_card(
     title: str,
     value: str,
@@ -275,6 +324,165 @@ def health():
         "databaseConfigured":
             bool(DATABASE_URL),
     }
+
+
+
+@app.get(
+    "/tester/{beta_friend_id}",
+    response_class=HTMLResponse,
+)
+def tester_detail(beta_friend_id: str):
+    if not DATABASE_URL:
+        return HTMLResponse(
+            "<h1>DATABASE_URL non configurato</h1>",
+            status_code=503,
+        )
+
+    try:
+        analyses = load_friend_analyses(beta_friend_id)
+    except Exception as error:
+        return HTMLResponse(
+            f"<h1>Errore database</h1><p>{html.escape(str(error))}</p>",
+            status_code=500,
+        )
+
+    rows = []
+
+    for item in analyses:
+        rows.append(
+            f"""
+            <tr>
+                <td>{html.escape(str(item['id']))}</td>
+                <td>{item['createdAt']}</td>
+                <td>{item['score']}</td>
+                <td>{item['realQuality']}</td>
+                <td>{item['predictionError']}</td>
+                <td>{html.escape(str(item['status']))}</td>
+            </tr>
+            """
+        )
+
+    rows_html = "\n".join(rows)
+
+    return HTMLResponse(
+        f"""
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1"
+    >
+    <title>AngurIA Beta Friend</title>
+
+    <style>
+        body {{
+            margin: 0;
+            background: #f4f8f3;
+            color: #263238;
+            font-family:
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+        }}
+
+        .container {{
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 32px 20px 60px;
+        }}
+
+        a {{
+            color: #2e7d32;
+            text-decoration: none;
+            font-weight: 600;
+        }}
+
+        h1 {{
+            color: #2e7d32;
+        }}
+
+        .card {{
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow:
+                0 3px 14px
+                rgba(0, 0, 0, 0.06);
+            overflow-x: auto;
+        }}
+
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            min-width: 760px;
+        }}
+
+        th, td {{
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #edf2ed;
+        }}
+
+        th {{
+            color: #607d8b;
+            font-size: 12px;
+            text-transform: uppercase;
+        }}
+
+        .back {{
+            margin-bottom: 20px;
+            display: inline-block;
+        }}
+    </style>
+</head>
+
+<body>
+    <div class="container">
+
+        <a
+            class="back"
+            href="/"
+        >
+            ← Torna al monitor
+        </a>
+
+        <h1>
+            🍉 Beta Friend {html.escape(beta_friend_id)}
+        </h1>
+
+        <p>
+            Analisi registrate: <strong>{len(analyses)}</strong>
+        </p>
+
+        <div class="card">
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Analisi</th>
+                        <th>Data</th>
+                        <th>Score</th>
+                        <th>Qualità reale</th>
+                        <th>Errore</th>
+                        <th>Stato</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+
+        </div>
+    </div>
+</body>
+</html>
+        """
+    )
+
 
 
 @app.get(
@@ -413,7 +621,9 @@ def dashboard():
             <tr>
                 <td>
                     <strong>
-                        {beta_id}
+                        <a href="/tester/{beta_id}">
+                            {beta_id}
+                        </a>
                     </strong>
                 </td>
 
