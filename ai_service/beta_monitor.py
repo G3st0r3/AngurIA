@@ -542,6 +542,38 @@ def load_signal_diagnostics():
     return result
 
 
+
+def build_signal_insights(signal_diagnostics, min_cases: int = 5):
+    insights = []
+
+    for item in signal_diagnostics:
+        cases = item["cases"]
+
+        bias = (
+            item["avgRealQuality"] -
+            item["avgScore"]
+        )
+
+        if cases < min_cases:
+            status = "campione insufficiente"
+        elif abs(bias) <= 10:
+            status = "segnale stabile"
+        elif bias > 10:
+            status = "tendenza alla sottostima"
+        else:
+            status = "tendenza alla sovrastima"
+
+        insights.append(
+            {
+                **item,
+                "bias": bias,
+                "status": status,
+            }
+        )
+
+    return insights
+
+
 def metric_card(
     title: str,
     value: str,
@@ -1036,6 +1068,7 @@ def dashboard():
         friends = load_beta_friends()
         high_errors = load_high_error_analyses()
         signal_diagnostics = load_signal_diagnostics()
+        signal_insights = build_signal_insights(signal_diagnostics)
 
     except Exception as error:
         safe_error = html.escape(
@@ -1330,6 +1363,80 @@ def dashboard():
         """
     )
 
+
+    insight_rows = []
+
+    for item in signal_insights:
+        insight_rows.append(
+            f"""
+            <tr>
+                <td>
+                    <strong>
+                        {html.escape(str(item['feature']))}
+                    </strong>
+                </td>
+
+                <td>
+                    {html.escape(str(item['value']))}
+                </td>
+
+                <td>{item['cases']}</td>
+
+                <td>
+                    {item['bias']:+.1f}
+                </td>
+
+                <td>
+                    <strong>
+                        {html.escape(str(item['status']))}
+                    </strong>
+                </td>
+            </tr>
+            """
+        )
+
+    insight_rows_html = (
+        "\n".join(insight_rows)
+        if insight_rows
+        else """
+            <tr>
+                <td colspan="5">
+                    Nessun insight disponibile.
+                </td>
+            </tr>
+        """
+    )
+
+    signal_insights_html = f"""
+        <div class="table-card">
+            <h2>💡 Signal Insights</h2>
+
+            <p>
+                Lettura automatica delle possibili
+                tendenze dei segnali.
+                Una tendenza viene considerata
+                significativa solo da almeno 5 casi.
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Segnale</th>
+                        <th>Valore</th>
+                        <th>Casi</th>
+                        <th>Bias</th>
+                        <th>Interpretazione</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {insight_rows_html}
+                </tbody>
+            </table>
+        </div>
+    """
+
+
     signal_diagnostics_html = f"""
         <div class="table-card">
             <h2>🧠 Diagnostica Segnali</h2>
@@ -1568,6 +1675,8 @@ def dashboard():
             </table>
 
         </div>
+        {signal_insights_html}
+
         {signal_diagnostics_html}
 
         {diagnostic_html}
