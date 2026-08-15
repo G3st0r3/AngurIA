@@ -443,6 +443,105 @@ def load_high_error_analyses(limit: int = 10):
     return result
 
 
+
+def load_signal_diagnostics():
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    feature.key,
+                    feature.value,
+                    COUNT(*) AS cases,
+
+                    AVG(
+                        (payload->>'score')::numeric
+                    ) AS avg_score,
+
+                    AVG(
+                        (payload->>'realQualityScore')::numeric
+                    ) AS avg_real_quality,
+
+                    AVG(
+                        ABS(
+                            (payload->>'score')::numeric -
+                            (payload->>'realQualityScore')::numeric
+                        )
+                    ) AS avg_error,
+
+                    COUNT(*) FILTER (
+                        WHERE ABS(
+                            (payload->>'score')::numeric -
+                            (payload->>'realQualityScore')::numeric
+                        ) <= 10
+                    ) AS accurate,
+
+                    COUNT(*) FILTER (
+                        WHERE
+                            (payload->>'score')::numeric <
+                            (payload->>'realQualityScore')::numeric
+                            AND ABS(
+                                (payload->>'score')::numeric -
+                                (payload->>'realQualityScore')::numeric
+                            ) > 10
+                    ) AS underestimated,
+
+                    COUNT(*) FILTER (
+                        WHERE
+                            (payload->>'score')::numeric >
+                            (payload->>'realQualityScore')::numeric
+                            AND ABS(
+                                (payload->>'score')::numeric -
+                                (payload->>'realQualityScore')::numeric
+                            ) > 10
+                    ) AS overestimated
+
+                FROM analyses
+                CROSS JOIN LATERAL
+                    jsonb_each_text(payload->'features')
+                    AS feature(key, value)
+
+                WHERE
+                    NULLIF(payload->>'betaFriendId', '') IS NOT NULL
+                    AND status = 'feedback_completed'
+                    AND NULLIF(feature.value, '') IS NOT NULL
+                    AND payload->>'score'
+                        ~ '^[0-9]+([.][0-9]+)?$'
+                    AND payload->>'realQualityScore'
+                        ~ '^[0-9]+([.][0-9]+)?$'
+
+                GROUP BY
+                    feature.key,
+                    feature.value
+
+                ORDER BY
+                    avg_error DESC,
+                    cases DESC
+                """
+            )
+
+            rows = cursor.fetchall()
+
+    result = []
+
+    for row in rows:
+        result.append(
+            {
+                "feature": row[0],
+                "value": row[1],
+                "cases": int(row[2] or 0),
+                "avgScore": float(row[3] or 0),
+                "avgRealQuality": float(row[4] or 0),
+                "avgError": float(row[5] or 0),
+                "accurate": int(row[6] or 0),
+                "underestimated": int(row[7] or 0),
+                "overestimated": int(row[8] or 0),
+            }
+        )
+
+    return result
+
+
 def metric_card(
     title: str,
     value: str,
@@ -936,6 +1035,7 @@ def dashboard():
         summary = load_summary()
         friends = load_beta_friends()
         high_errors = load_high_error_analyses()
+        signal_diagnostics = load_signal_diagnostics()
 
     except Exception as error:
         safe_error = html.escape(
@@ -1153,6 +1253,115 @@ def dashboard():
         """
     )
 
+
+    signal_rows = []
+
+    for item in signal_diagnostics:
+        cases = item["cases"]
+
+        accurate_pct = (
+            item["accurate"] / cases * 100
+            if cases
+            else 0
+        )
+
+        underestimated_pct = (
+            item["underestimated"] / cases * 100
+            if cases
+            else 0
+        )
+
+        overestimated_pct = (
+            item["overestimated"] / cases * 100
+            if cases
+            else 0
+        )
+
+        signal_rows.append(
+            f"""
+            <tr>
+                <td>
+                    <strong>
+                        {html.escape(str(item['feature']))}
+                    </strong>
+                </td>
+
+                <td>
+                    {html.escape(str(item['value']))}
+                </td>
+
+                <td>{item['cases']}</td>
+                <td>{item['avgScore']:.1f}</td>
+                <td>{item['avgRealQuality']:.1f}</td>
+
+                <td>
+                    <strong>
+                        {item['avgError']:.1f}
+                    </strong>
+                </td>
+
+                <td>
+                    {item['accurate']}
+                    ({accurate_pct:.0f}%)
+                </td>
+
+                <td>
+                    {item['underestimated']}
+                    ({underestimated_pct:.0f}%)
+                </td>
+
+                <td>
+                    {item['overestimated']}
+                    ({overestimated_pct:.0f}%)
+                </td>
+            </tr>
+            """
+        )
+
+    signal_rows_html = (
+        "\n".join(signal_rows)
+        if signal_rows
+        else """
+            <tr>
+                <td colspan="9">
+                    Nessun dato disponibile.
+                </td>
+            </tr>
+        """
+    )
+
+    signal_diagnostics_html = f"""
+        <div class="table-card">
+            <h2>🧠 Diagnostica Segnali</h2>
+
+            <p>
+                Prestazioni dei segnali osservati
+                nelle analisi Beta con feedback reale.
+            </p>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Segnale</th>
+                        <th>Valore</th>
+                        <th>Casi</th>
+                        <th>AngurIA</th>
+                        <th>Reale</th>
+                        <th>Errore medio</th>
+                        <th>Accurate</th>
+                        <th>Sottostimate</th>
+                        <th>Sovrastimate</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {signal_rows_html}
+                </tbody>
+            </table>
+        </div>
+    """
+
+
     diagnostic_html = f"""
         <div class="table-card">
             <h2>🔬 Analisi con errore più alto</h2>
@@ -1359,6 +1568,8 @@ def dashboard():
             </table>
 
         </div>
+        {signal_diagnostics_html}
+
         {diagnostic_html}
 
         {historical_html}
