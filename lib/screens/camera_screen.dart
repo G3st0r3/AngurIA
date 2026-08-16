@@ -274,6 +274,11 @@ class _CameraScreenState extends State<CameraScreen> {
 
           'detectorLabel':
               (detectorResult?['label'] as String?) ?? '',
+
+          'shadowV2':
+              (result['shadowV2']
+                      as Map<String, dynamic>?) ??
+                  <String, dynamic>{},
         });
 
         if (!mounted) {

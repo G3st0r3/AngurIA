@@ -393,6 +393,7 @@ from pydantic import BaseModel
 from typing import Optional
 
 from intelligence.score_engine import calculate_anguria_score
+from intelligence.score_engine_v2 import calculate_anguria_score as calculate_anguria_score_v2
 
 
 class ScoreRequest(BaseModel):
@@ -418,6 +419,7 @@ def score_watermelon(payload: ScoreRequest):
     }
 
     result = calculate_anguria_score(features)
+    shadow_v2 = calculate_anguria_score_v2(features)
 
     score = result["score"]
 
@@ -439,6 +441,19 @@ def score_watermelon(payload: ScoreRequest):
         "warnings": result["warnings"],
         "experimental": result["experimental"],
         "disclaimer": result["disclaimer"],
+
+        "shadowV2": {
+            "score": shadow_v2["score"],
+            "rawScore": shadow_v2["rawScore"],
+            "availableMaxScore":
+                shadow_v2["availableMaxScore"],
+            "completeness":
+                shadow_v2["completeness"],
+            "observedFeatures":
+                shadow_v2["observedFeatures"],
+            "missingFeatures":
+                shadow_v2["missingFeatures"],
+        },
     }
 
 
@@ -547,6 +562,8 @@ class AnalysisSaveRequest(BaseModel):
     detectorConfidence: float = 0.0
     detectorLabel: str = ""
 
+    shadowV2: dict = {}
+
 
 @app.post("/analysis/save")
 def save_analysis(payload: AnalysisSaveRequest):
@@ -582,6 +599,8 @@ def save_analysis(payload: AnalysisSaveRequest):
             "confidence": payload.detectorConfidence,
             "label": payload.detectorLabel,
         },
+
+        "shadowV2": payload.shadowV2,
 
         "status": "saved",
     }
