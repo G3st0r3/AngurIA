@@ -642,6 +642,161 @@ def load_beta_funnel():
     }
 
 
+
+def load_beta_activity():
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(*) FILTER (
+                        WHERE created_at >= CURRENT_DATE
+                    ) AS visits_today,
+
+                    COUNT(*) FILTER (
+                        WHERE created_at >= NOW() - INTERVAL '24 hours'
+                    ) AS visits_24h,
+
+                    COUNT(
+                        DISTINCT beta_friend_id
+                    ) FILTER (
+                        WHERE created_at >= NOW() - INTERVAL '7 days'
+                    ) AS visitors_7d
+
+                FROM beta_visits
+                """
+            )
+
+            visit_row = cursor.fetchone()
+
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(*) FILTER (
+                        WHERE
+                            NULLIF(
+                                payload->>'betaFriendId',
+                                ''
+                            ) IS NOT NULL
+                            AND created_at >= NOW() - INTERVAL '7 days'
+                    ) AS analyses_7d,
+
+                    COUNT(*) FILTER (
+                        WHERE
+                            NULLIF(
+                                payload->>'betaFriendId',
+                                ''
+                            ) IS NOT NULL
+                            AND status = 'feedback_completed'
+                            AND updated_at >= NOW() - INTERVAL '7 days'
+                    ) AS feedback_7d
+
+                FROM analyses
+                """
+            )
+
+            analysis_row = cursor.fetchone()
+
+            cursor.execute(
+                """
+                WITH days AS (
+                    SELECT generate_series(
+                        CURRENT_DATE - INTERVAL '6 days',
+                        CURRENT_DATE,
+                        INTERVAL '1 day'
+                    )::date AS day
+                ),
+
+                visits AS (
+                    SELECT
+                        created_at::date AS day,
+                        COUNT(*) AS visits,
+                        COUNT(
+                            DISTINCT beta_friend_id
+                        ) AS visitors
+                    FROM beta_visits
+                    WHERE
+                        created_at >= CURRENT_DATE - INTERVAL '6 days'
+                    GROUP BY 1
+                ),
+
+                analyses_daily AS (
+                    SELECT
+                        created_at::date AS day,
+                        COUNT(*) AS analyses
+                    FROM analyses
+                    WHERE
+                        NULLIF(
+                            payload->>'betaFriendId',
+                            ''
+                        ) IS NOT NULL
+                        AND created_at >= CURRENT_DATE - INTERVAL '6 days'
+                    GROUP BY 1
+                ),
+
+                feedback_daily AS (
+                    SELECT
+                        updated_at::date AS day,
+                        COUNT(*) AS feedback
+                    FROM analyses
+                    WHERE
+                        NULLIF(
+                            payload->>'betaFriendId',
+                            ''
+                        ) IS NOT NULL
+                        AND status = 'feedback_completed'
+                        AND updated_at >= CURRENT_DATE - INTERVAL '6 days'
+                    GROUP BY 1
+                )
+
+                SELECT
+                    days.day,
+                    COALESCE(visits.visits, 0),
+                    COALESCE(visits.visitors, 0),
+                    COALESCE(analyses_daily.analyses, 0),
+                    COALESCE(feedback_daily.feedback, 0)
+
+                FROM days
+
+                LEFT JOIN visits
+                    ON visits.day = days.day
+
+                LEFT JOIN analyses_daily
+                    ON analyses_daily.day = days.day
+
+                LEFT JOIN feedback_daily
+                    ON feedback_daily.day = days.day
+
+                ORDER BY days.day DESC
+                """
+            )
+
+            daily_rows = cursor.fetchall()
+
+    daily = []
+
+    for row in daily_rows:
+        daily.append(
+            {
+                "date": row[0].strftime("%d/%m/%Y"),
+                "visits": int(row[1] or 0),
+                "visitors": int(row[2] or 0),
+                "analyses": int(row[3] or 0),
+                "feedback": int(row[4] or 0),
+            }
+        )
+
+    return {
+        "visitsToday": int(visit_row[0] or 0),
+        "visits24h": int(visit_row[1] or 0),
+        "visitors7d": int(visit_row[2] or 0),
+        "analyses7d": int(analysis_row[0] or 0),
+        "feedback7d": int(analysis_row[1] or 0),
+        "daily": daily,
+    }
+
+
 def metric_card(
     title: str,
     value: str,
@@ -1134,6 +1289,7 @@ def dashboard():
     try:
         summary = load_summary()
         funnel = load_beta_funnel()
+        activity = load_beta_activity()
         friends = load_beta_friends()
         high_errors = load_high_error_analyses()
         signal_diagnostics = load_signal_diagnostics()
@@ -1229,6 +1385,91 @@ def dashboard():
         ),
     ]
     )
+
+
+
+    activity_rows = []
+
+    for item in activity["daily"]:
+        activity_rows.append(
+            f"""
+            <tr>
+                <td>
+                    <strong>{item['date']}</strong>
+                </td>
+                <td>{item['visits']}</td>
+                <td>{item['visitors']}</td>
+                <td>{item['analyses']}</td>
+                <td>{item['feedback']}</td>
+            </tr>
+            """
+        )
+
+    activity_rows_html = "\n".join(activity_rows)
+
+    activity_html = f"""
+        <div class="table-card">
+
+            <h2>📅 Attività Beta</h2>
+
+            <p>
+                Utilizzo recente della Beta
+                e andamento degli ultimi 7 giorni.
+            </p>
+
+            <div class="metrics">
+
+                {metric_card(
+                    "Visite oggi",
+                    str(activity["visitsToday"]),
+                    "Aperture dalla mezzanotte"
+                )}
+
+                {metric_card(
+                    "Visite 24h",
+                    str(activity["visits24h"]),
+                    "Ultime 24 ore"
+                )}
+
+                {metric_card(
+                    "Visitatori 7 giorni",
+                    str(activity["visitors7d"]),
+                    "Beta Friend distinti"
+                )}
+
+                {metric_card(
+                    "Analisi 7 giorni",
+                    str(activity["analyses7d"]),
+                    "Analisi Beta"
+                )}
+
+                {metric_card(
+                    "Feedback 7 giorni",
+                    str(activity["feedback7d"]),
+                    "Qualità reale registrata"
+                )}
+
+            </div>
+
+            <table>
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Visite</th>
+                        <th>Visitatori</th>
+                        <th>Analisi</th>
+                        <th>Feedback</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {activity_rows_html}
+                </tbody>
+
+            </table>
+
+        </div>
+    """
 
 
     funnel_html = f"""
@@ -1795,6 +2036,8 @@ def dashboard():
             </table>
 
         </div>
+        {activity_html}
+
         {funnel_html}
 
         {signal_insights_html}
