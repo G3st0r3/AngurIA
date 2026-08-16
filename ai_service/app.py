@@ -81,7 +81,22 @@ def init_database():
                             DEFAULT NOW(),
                         updated_at TIMESTAMPTZ NOT NULL
                             DEFAULT NOW()
-                    )
+                    );
+
+                    CREATE TABLE IF NOT EXISTS beta_visits (
+                        id BIGSERIAL PRIMARY KEY,
+                        beta_friend_id TEXT NOT NULL,
+                        created_at TIMESTAMPTZ NOT NULL
+                            DEFAULT NOW()
+                    );
+
+                    CREATE INDEX IF NOT EXISTS
+                        idx_beta_visits_beta_friend_id
+                    ON beta_visits(beta_friend_id);
+
+                    CREATE INDEX IF NOT EXISTS
+                        idx_beta_visits_created_at
+                    ON beta_visits(created_at)
                     """
                 )
 
@@ -425,6 +440,67 @@ def score_watermelon(payload: ScoreRequest):
         "experimental": result["experimental"],
         "disclaimer": result["disclaimer"],
     }
+
+
+# ============================================================
+# ANGURIA BETA VISIT API
+# ============================================================
+
+class BetaVisitRequest(BaseModel):
+    betaFriendId: str
+
+
+@app.post("/beta/visit")
+def save_beta_visit(payload: BetaVisitRequest):
+    beta_friend_id = payload.betaFriendId.strip()
+
+    if not beta_friend_id:
+        raise HTTPException(
+            status_code=400,
+            detail="betaFriendId obbligatorio",
+        )
+
+    if not DATABASE_URL:
+        return {
+            "saved": False,
+            "betaFriendId": beta_friend_id,
+            "databaseConfigured": False,
+        }
+
+    try:
+        with psycopg.connect(DATABASE_URL) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO beta_visits (
+                        beta_friend_id
+                    )
+                    VALUES (%s)
+                    """,
+                    (beta_friend_id,),
+                )
+
+        print(
+            f"✅ Beta visit salvata: "
+            f"{beta_friend_id}"
+        )
+
+        return {
+            "saved": True,
+            "betaFriendId": beta_friend_id,
+        }
+
+    except Exception as error:
+        print(
+            "⚠️ Salvataggio Beta visit "
+            f"non riuscito: {error}"
+        )
+
+        raise HTTPException(
+            status_code=500,
+            detail="Errore salvataggio Beta visit",
+        )
+
 
 
 # ============================================================
