@@ -1,7 +1,11 @@
+import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../config/api_config.dart';
 
 import 'camera_screen.dart';
 
@@ -33,6 +37,8 @@ class _HomeScreenState extends State<HomeScreen> {
       _betaFriendId = fallbackId;
       _isPreparing = false;
     });
+
+    _registerBetaVisit(fallbackId);
   }
 
   // Prova poi a recuperare o salvare
@@ -60,6 +66,10 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _betaFriendId = storedId;
     });
+
+    if (storedId != fallbackId) {
+      _registerBetaVisit(storedId);
+    }
   } catch (error) {
     debugPrint(
       'Beta Friend storage non disponibile: $error',
@@ -69,6 +79,33 @@ class _HomeScreenState extends State<HomeScreen> {
     // resta valido l'ID generato inizialmente.
   }
 }
+
+
+  Future<void> _registerBetaVisit(
+    String betaFriendId,
+  ) async {
+    try {
+      await http
+          .post(
+            Uri.parse(
+              '${ApiConfig.baseUrl}/beta/visit',
+            ),
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({
+              'betaFriendId': betaFriendId,
+            }),
+          )
+          .timeout(
+            const Duration(seconds: 4),
+          );
+    } catch (error) {
+      debugPrint(
+        'Beta visit non registrata: $error',
+      );
+    }
+  }
 
   String _generateBetaFriendId() {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
