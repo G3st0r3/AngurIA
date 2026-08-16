@@ -574,6 +574,74 @@ def build_signal_insights(signal_diagnostics, min_cases: int = 5):
     return insights
 
 
+
+def load_beta_funnel():
+    with get_connection() as conn:
+        with conn.cursor() as cursor:
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(*) AS total_visits,
+                    COUNT(
+                        DISTINCT beta_friend_id
+                    ) AS unique_visitors
+                FROM beta_visits
+                """
+            )
+
+            visits_row = cursor.fetchone()
+
+            cursor.execute(
+                """
+                SELECT
+                    COUNT(
+                        DISTINCT NULLIF(
+                            payload->>'betaFriendId',
+                            ''
+                        )
+                    ) AS testers_with_analysis,
+
+                    COUNT(*) FILTER (
+                        WHERE
+                            NULLIF(
+                                payload->>'betaFriendId',
+                                ''
+                            ) IS NOT NULL
+                            AND status = 'feedback_completed'
+                    ) AS completed_feedbacks
+                FROM analyses
+                """
+            )
+
+            analysis_row = cursor.fetchone()
+
+    total_visits = int(visits_row[0] or 0)
+    unique_visitors = int(visits_row[1] or 0)
+    testers_with_analysis = int(analysis_row[0] or 0)
+    completed_feedbacks = int(analysis_row[1] or 0)
+
+    visit_to_analysis = (
+        testers_with_analysis / unique_visitors * 100
+        if unique_visitors
+        else 0
+    )
+
+    analysis_to_feedback = (
+        completed_feedbacks / testers_with_analysis * 100
+        if testers_with_analysis
+        else 0
+    )
+
+    return {
+        "totalVisits": total_visits,
+        "uniqueVisitors": unique_visitors,
+        "testersWithAnalysis": testers_with_analysis,
+        "completedFeedbacks": completed_feedbacks,
+        "visitToAnalysisRate": visit_to_analysis,
+        "analysisToFeedbackRate": analysis_to_feedback,
+    }
+
+
 def metric_card(
     title: str,
     value: str,
@@ -1065,6 +1133,7 @@ def dashboard():
 
     try:
         summary = load_summary()
+        funnel = load_beta_funnel()
         friends = load_beta_friends()
         high_errors = load_high_error_analyses()
         signal_diagnostics = load_signal_diagnostics()
@@ -1160,6 +1229,57 @@ def dashboard():
         ),
     ]
     )
+
+
+    funnel_html = f"""
+        <div class="table-card">
+            <h2>📈 Funnel Beta</h2>
+
+            <p>
+                Dal primo accesso alla Beta
+                fino al feedback reale.
+            </p>
+
+            <div class="metrics">
+                {metric_card(
+                    "Visite totali",
+                    str(funnel["totalVisits"]),
+                    "Aperture registrate"
+                )}
+
+                {metric_card(
+                    "Visitatori unici",
+                    str(funnel["uniqueVisitors"]),
+                    "Beta Friend distinti"
+                )}
+
+                {metric_card(
+                    "Tester con analisi",
+                    str(funnel["testersWithAnalysis"]),
+                    "Hanno completato almeno un'analisi"
+                )}
+
+                {metric_card(
+                    "Feedback completati",
+                    str(funnel["completedFeedbacks"]),
+                    "Risultato reale registrato"
+                )}
+
+                {metric_card(
+                    "Visita → Analisi",
+                    f"{funnel['visitToAnalysisRate']:.1f}%",
+                    "Conversione visitatori in tester"
+                )}
+
+                {metric_card(
+                    "Analisi → Feedback",
+                    f"{funnel['analysisToFeedbackRate']:.1f}%",
+                    "Conversione tester in feedback"
+                )}
+            </div>
+        </div>
+    """
+
 
     historical_html = f"""
         <div class="table-card historical-card">
@@ -1675,6 +1795,8 @@ def dashboard():
             </table>
 
         </div>
+        {funnel_html}
+
         {signal_insights_html}
 
         {signal_diagnostics_html}
