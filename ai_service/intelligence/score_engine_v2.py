@@ -202,8 +202,27 @@ def calculate_anguria_score(
             )
 
     # ------------------------------------------------
-    # Score normalizzato
+    # Score V2 confidence-aware
     # ------------------------------------------------
+    #
+    # Il punteggio normalizzato puro stima come sarebbe
+    # il risultato se i segnali osservati fossero
+    # rappresentativi anche di quelli mancanti.
+    #
+    # Per evitare di gonfiare eccessivamente lo score
+    # quando mancano feature importanti, recuperiamo
+    # solo una parte del gap tra raw_score e
+    # normalized_score.
+    #
+    # Più alta è la completezza, maggiore è la fiducia
+    # concessa alla normalizzazione.
+    # ------------------------------------------------
+
+    completeness = round(
+        available_max_score /
+        MAX_SCORE *
+        100
+    )
 
     if available_max_score > 0:
         normalized_score = round(
@@ -219,29 +238,47 @@ def calculate_anguria_score(
         min(normalized_score, MAX_SCORE),
     )
 
-    completeness = round(
-        available_max_score /
-        MAX_SCORE *
-        100
+    confidence = completeness / 100.0
+
+    # Recuperiamo al massimo il 50% del gap teorico,
+    # modulato ulteriormente dalla completezza.
+    recovery_factor = 0.5 * confidence
+
+    recovery_gap = (
+        normalized_score - raw_score
+    )
+
+    confidence_adjustment = round(
+        recovery_gap * recovery_factor
+    )
+
+    final_score = raw_score + confidence_adjustment
+
+    final_score = max(
+        0,
+        min(final_score, MAX_SCORE),
     )
 
     # ------------------------------------------------
     # Recommendation
     # ------------------------------------------------
 
-    if normalized_score >= 80:
+    if final_score >= 80:
         recommendation = "promettente"
-    elif normalized_score >= 60:
+    elif final_score >= 60:
         recommendation = "discreta"
-    elif normalized_score >= 40:
+    elif final_score >= 40:
         recommendation = "incerta"
     else:
         recommendation = "poco promettente"
 
     return {
-        "score": normalized_score,
+        "score": final_score,
 
         "rawScore": raw_score,
+        "normalizedScore": normalized_score,
+        "confidenceAdjustment": confidence_adjustment,
+        "recoveryFactor": round(recovery_factor, 3),
         "availableMaxScore":
             available_max_score,
 
@@ -268,7 +305,8 @@ def calculate_anguria_score(
             "Punteggio euristico sperimentale. "
             "I segnali non osservati non vengono "
             "considerati negativi. "
-            "Il punteggio viene normalizzato "
-            "sui soli segnali disponibili."
+            "I segnali mancanti vengono gestiti "
+            "con una normalizzazione prudenziale "
+            "pesata sulla completezza dell'analisi."
         ),
     }
