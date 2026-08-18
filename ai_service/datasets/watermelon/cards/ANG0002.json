@@ -1,0 +1,40 @@
+{
+  "id": "ANG0002",
+  "status": "active",
+  "photo": "ANG0002.jpg",
+  "source": "own",
+  "date": "2026-08-08",
+  "variety": "",
+  "origin": "",
+  "weightKg": null,
+  "pricePerKg": null,
+  "brix": null,
+  "sweetness": null,
+  "crunchiness": null,
+  "juiciness": null,
+  "mealiness": null,
+  "seedLevel": null,
+  "peduncle": "",
+  "groundSpot": "creamy_yellow",
+  "shape": "slightly_irregular",
+  "stripes": "medium",
+  "externalQuality": null,
+  "openedPhoto": "",
+  "trainingStatus": "annotated",
+  "notes": "scheda ricostruita automaticamente",
+  "anguriaScore": 63,
+  "anguriaScoreMax": 100,
+  "recommendation": "discreta",
+  "scoreReasons": [
+    "Macchia d'appoggio favorevole",
+    "Colorazione esterna equilibrata"
+  ],
+  "scoreWarnings": [
+    "Peduncolo ancora molto verde"
+  ],
+  "scoreExperimental": true,
+  "scoreDisclaimer": "Punteggio euristico sperimentale. Non ancora validato rispetto a Brix o qualità interna reale.",
+  "symmetry": "medium",
+  "color": "balanced",
+  "surface": "minor_defects"
+}
