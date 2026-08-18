@@ -139,6 +139,120 @@ def health():
     }
 
 
+
+def estimate_shape_feature(
+    image,
+    bounding_box,
+):
+    """
+    Stima euristica sperimentale della regolarità
+    della forma dell'anguria.
+
+    Restituisce:
+    - regular
+    - slightly_irregular
+    - irregular
+    - "" se la stima non è affidabile
+    """
+
+    if image is None or not bounding_box:
+        return ""
+
+    x = int(bounding_box["x"])
+    y = int(bounding_box["y"])
+    width = int(bounding_box["width"])
+    height = int(bounding_box["height"])
+
+    if width <= 0 or height <= 0:
+        return ""
+
+    crop = image[
+        max(0, y):max(0, y + height),
+        max(0, x):max(0, x + width),
+    ]
+
+    if crop.size == 0:
+        return ""
+
+    gray = cv2.cvtColor(
+        crop,
+        cv2.COLOR_BGR2GRAY,
+    )
+
+    gray = cv2.GaussianBlur(
+        gray,
+        (7, 7),
+        0,
+    )
+
+    edges = cv2.Canny(
+        gray,
+        40,
+        120,
+    )
+
+    contours, _ = cv2.findContours(
+        edges,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE,
+    )
+
+    if not contours:
+        return ""
+
+    contour = max(
+        contours,
+        key=cv2.contourArea,
+    )
+
+    area = cv2.contourArea(contour)
+
+    if area <= 0:
+        return ""
+
+    hull = cv2.convexHull(contour)
+    hull_area = cv2.contourArea(hull)
+
+    if hull_area <= 0:
+        return ""
+
+    solidity = area / hull_area
+
+    perimeter = cv2.arcLength(
+        contour,
+        True,
+    )
+
+    if perimeter <= 0:
+        return ""
+
+    circularity = (
+        4.0 * 3.141592653589793 * area
+        / (perimeter * perimeter)
+    )
+
+    # Se il contorno occupa troppo poco del crop,
+    # la stima non è considerata affidabile.
+    crop_area = crop.shape[0] * crop.shape[1]
+
+    if crop_area <= 0:
+        return ""
+
+    coverage = area / crop_area
+
+    if coverage < 0.20:
+        return ""
+
+    if solidity >= 0.94 and circularity >= 0.65:
+        return "regular"
+
+    if solidity >= 0.86 and circularity >= 0.45:
+        return "slightly_irregular"
+
+    return "irregular"
+
+
+
 @app.post("/detect")
 async def detect_watermelon(
     image: UploadFile = File(...),
@@ -352,6 +466,16 @@ async def detect_watermelon(
                 MIN_ACCEPTED_CONFIDENCE,
             "inferenceTimeMs":
                 inference_time_ms,
+            "features": {
+                "shape": (
+                    estimate_shape_feature(
+                        original_image,
+                        best_candidate["boundingBox"],
+                    )
+                    if best_candidate is not None
+                    else ""
+                ),
+            },
             "annotatedImageBase64":
                 annotated_image_base64,
             "image": {
@@ -445,6 +569,12 @@ def score_watermelon(payload: ScoreRequest):
         "shadowV2": {
             "score": shadow_v2["score"],
             "rawScore": shadow_v2["rawScore"],
+            "normalizedScore":
+                shadow_v2["normalizedScore"],
+            "confidenceAdjustment":
+                shadow_v2["confidenceAdjustment"],
+            "recoveryFactor":
+                shadow_v2["recoveryFactor"],
             "availableMaxScore":
                 shadow_v2["availableMaxScore"],
             "completeness":
