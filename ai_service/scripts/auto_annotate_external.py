@@ -65,7 +65,37 @@ for item_id in ("ANG0011", "ANG0012"):
         print(f"⚠️ {item_id}: nessun box trovato")
         continue
 
-    _, x, y, bw, bh = max(candidates)
+    candidates.sort(reverse=True)
+
+    selected = None
+
+    for _, x, y, bw, bh in candidates:
+        box_ratio = (
+            bw * bh
+        ) / (
+            small.shape[0]
+            * small.shape[1]
+        )
+
+        if box_ratio >= 0.90:
+            continue
+
+        selected = (
+            x,
+            y,
+            bw,
+            bh,
+        )
+        break
+
+    if selected is None:
+        print(
+            f"⚠️ {item_id}: "
+            "solo box troppo grande, scartato"
+        )
+        continue
+
+    x, y, bw, bh = selected
 
     x = int(x / scale)
     y = int(y / scale)
