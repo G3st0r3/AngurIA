@@ -665,6 +665,45 @@ def dashboard():
         gallery_items
     )
 
+    next_unannotated_id = next(
+        (
+            image.stem
+            for image in images
+            if image.stem not in annotated_ids
+        ),
+        None,
+    )
+
+    if next_unannotated_id:
+        annotation_action_html = f"""
+        <div style="margin: 22px 0;">
+            <a
+                href="/annotate/{next_unannotated_id}"
+                style="
+                    display: inline-block;
+                    background: #2e7d32;
+                    color: white;
+                    text-decoration: none;
+                    font-weight: 800;
+                    padding: 13px 20px;
+                    border-radius: 12px;
+                "
+            >
+                🍉 Annota prossima
+            </a>
+        </div>
+        """
+    else:
+        annotation_action_html = """
+        <div style="
+            margin: 22px 0;
+            font-weight: 700;
+            color: #2e7d32;
+        ">
+            ✅ Tutte le immagini sono annotate
+        </div>
+        """
+
     if not gallery_html:
         gallery_html = """
         <div class="empty">
@@ -998,6 +1037,8 @@ def dashboard():
                 </div>
 
             </div>
+
+            {annotation_action_html}
 
             <h2 class="section-title">
                 Galleria Dataset
