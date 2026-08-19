@@ -87,6 +87,14 @@ def get_image(filename: str):
     image_path = RAW_OWN_DIR / safe_filename
 
     if not image_path.exists():
+        image_path = (
+            DATASET_DIR /
+            "raw" /
+            "external" /
+            safe_filename
+        )
+
+    if not image_path.exists():
         raise HTTPException(
             status_code=404,
             detail="Immagine non trovata",
@@ -120,6 +128,9 @@ def annotate_image(item_id: str):
     ).name
 
     image_path = RAW_OWN_DIR / filename
+
+    if not image_path.exists():
+        image_path = DATASET_DIR / "raw" / "external" / filename
 
     if not image_path.exists():
         raise HTTPException(
@@ -223,8 +234,12 @@ def annotate_image(item_id: str):
 
             <br>
 
+            <button id="addBox">
+                Aggiungi box
+            </button>
+
             <button id="save">
-                Salva bounding box
+                Salva tutte
             </button>
 
             <div id="status"></div>
@@ -240,6 +255,7 @@ def annotate_image(item_id: str):
             let startY = 0;
             let currentBox = null;
             let drawing = false;
+            let boxes = [];
 
             function resizeCanvas() {
                 canvas.width = img.clientWidth;
@@ -257,12 +273,23 @@ def annotate_image(item_id: str):
                     canvas.height
                 );
 
+                ctx.strokeStyle = "#2e7d32";
+                ctx.lineWidth = 4;
+
+                for (const box of boxes) {
+                    ctx.strokeRect(
+                        box.x,
+                        box.y,
+                        box.width,
+                        box.height
+                    );
+                }
+
                 if (!currentBox) {
                     return;
                 }
 
                 ctx.strokeStyle = "#ff2d2d";
-                ctx.lineWidth = 4;
 
                 ctx.strokeRect(
                     currentBox.x,
@@ -321,6 +348,32 @@ def annotate_image(item_id: str):
                 }
             );
 
+            const addBoxButton =
+                document.getElementById("addBox");
+
+            addBoxButton.addEventListener(
+                "click",
+                function() {
+                    if (
+                        !currentBox ||
+                        currentBox.width < 5 ||
+                        currentBox.height < 5
+                    ) {
+                        status.textContent =
+                            "⚠️ Disegna prima una box.";
+                        return;
+                    }
+
+                    boxes.push(currentBox);
+                    currentBox = null;
+                    redraw();
+
+                    status.textContent =
+                        "✅ Box aggiunta. Totale: "
+                        + boxes.length;
+                }
+            );
+
             const saveButton =
                 document.getElementById("save");
 
@@ -341,19 +394,39 @@ def annotate_image(item_id: str):
                             return;
                         }
 
+                        if (currentBox) {
+                            boxes.push(currentBox);
+                            currentBox = null;
+                        }
+
+                        if (boxes.length === 0) {
+                            saveButton.disabled = false;
+                            saveButton.textContent =
+                                "Salva tutte";
+                            status.textContent =
+                                "⚠️ Nessuna box da salvare.";
+                            return;
+                        }
+
                         const payload = {
-                            x:
-                                currentBox.x /
-                                canvas.width,
-                            y:
-                                currentBox.y /
-                                canvas.height,
-                            width:
-                                currentBox.width /
-                                canvas.width,
-                            height:
-                                currentBox.height /
-                                canvas.height
+                            boxes: boxes.map(
+                                function(box) {
+                                    return {
+                                        x:
+                                            box.x /
+                                            canvas.width,
+                                        y:
+                                            box.y /
+                                            canvas.height,
+                                        width:
+                                            box.width /
+                                            canvas.width,
+                                        height:
+                                            box.height /
+                                            canvas.height
+                                    };
+                                }
+                            )
                         };
 
                         const response = await fetch(
@@ -446,36 +519,63 @@ async def save_web_annotation(
 
     payload = await request.json()
 
-    try:
-        x = float(payload["x"])
-        y = float(payload["y"])
-        width = float(payload["width"])
-        height = float(payload["height"])
-    except (
-        KeyError,
-        TypeError,
-        ValueError,
-    ):
-        raise HTTPException(
-            status_code=400,
-            detail="Bounding box non valida",
-        )
+    raw_boxes = payload.get("boxes")
+
+    if raw_boxes is None:
+        raw_boxes = [payload]
 
     if (
-        x < 0 or
-        y < 0 or
-        width <= 0 or
-        height <= 0 or
-        x + width > 1.001 or
-        y + height > 1.001
+        not isinstance(raw_boxes, list)
+        or not raw_boxes
     ):
         raise HTTPException(
             status_code=400,
-            detail="Bounding box fuori immagine",
+            detail="Nessuna bounding box valida",
         )
 
-    center_x = x + width / 2
-    center_y = y + height / 2
+    yolo_lines = []
+
+    for raw_box in raw_boxes:
+        try:
+            x = float(raw_box["x"])
+            y = float(raw_box["y"])
+            width = float(raw_box["width"])
+            height = float(raw_box["height"])
+        except (
+            KeyError,
+            TypeError,
+            ValueError,
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Bounding box non valida",
+            )
+
+        if (
+            x < 0 or
+            y < 0 or
+            width <= 0 or
+            height <= 0 or
+            x + width > 1.001 or
+            y + height > 1.001
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail="Bounding box fuori immagine",
+            )
+
+        center_x = x + width / 2
+        center_y = y + height / 2
+
+        yolo_lines.append(
+            (
+                f"0 "
+                f"{center_x:.6f} "
+                f"{center_y:.6f} "
+                f"{width:.6f} "
+                f"{height:.6f}"
+            )
+        )
 
     ANNOTATIONS_DIR.mkdir(
         parents=True,
@@ -488,13 +588,7 @@ async def save_web_annotation(
     )
 
     label_path.write_text(
-        (
-            f"0 "
-            f"{center_x:.6f} "
-            f"{center_y:.6f} "
-            f"{width:.6f} "
-            f"{height:.6f}\n"
-        ),
+        "\n".join(yolo_lines) + "\n",
         encoding="utf-8",
     )
 
