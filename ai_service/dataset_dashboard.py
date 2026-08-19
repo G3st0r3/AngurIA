@@ -321,10 +321,15 @@ def annotate_image(item_id: str):
                 }
             );
 
-            document.getElementById("save")
-                .addEventListener(
-                    "click",
-                    async function() {
+            const saveButton =
+                document.getElementById("save");
+
+            saveButton.addEventListener(
+                "click",
+                async function() {
+                    saveButton.disabled = true;
+                    saveButton.textContent =
+                        "Salvataggio...";
 
                         if (
                             !currentBox ||
@@ -368,9 +373,31 @@ def annotate_image(item_id: str):
                             await response.json();
 
                         if (response.ok) {
-                            status.textContent =
-                                "✅ Annotazione salvata";
+                            saveButton.textContent =
+                                "✅ Salvato";
+
+                            if (result.nextItemId) {
+                                status.textContent =
+                                    "✅ Salvata. Passo alla prossima...";
+
+                                setTimeout(
+                                    function() {
+                                        window.location.href =
+                                            "/annotate/" +
+                                            result.nextItemId;
+                                    },
+                                    600
+                                );
+                            } else {
+                                status.textContent =
+                                    "✅ Annotazione salvata. "
+                                    + "Nessun'altra immagine da annotare.";
+                            }
                         } else {
+                            saveButton.disabled = false;
+                            saveButton.textContent =
+                                "Salva bounding box";
+
                             status.textContent =
                                 "❌ " +
                                 (
@@ -490,11 +517,24 @@ async def save_web_annotation(
             indent=2,
         )
 
+    annotated_ids = get_annotated_ids()
+
+    next_item_id = None
+
+    for image in get_images():
+        candidate_id = image.stem
+
+        if candidate_id not in annotated_ids:
+            next_item_id = candidate_id
+            break
+
     return {
         "ok": True,
         "itemId": item_id,
         "label":
             label_path.name,
+        "nextItemId":
+            next_item_id,
     }
 
 
