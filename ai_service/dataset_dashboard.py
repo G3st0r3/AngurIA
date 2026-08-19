@@ -138,6 +138,10 @@ def annotate_image(item_id: str):
             detail="Immagine non trovata",
         )
 
+    image_version = str(
+        image_path.stat().st_mtime_ns
+    )
+
     html = """
     <!DOCTYPE html>
     <html lang="it">
@@ -226,7 +230,7 @@ def annotate_image(item_id: str):
             <div class="stage">
                 <img
                     id="photo"
-                    src="/image/__FILENAME__"
+                    src="/image/__FILENAME__?v=__IMAGE_VERSION__"
                     alt="__ITEM_ID__"
                 >
                 <canvas id="canvas"></canvas>
@@ -501,6 +505,9 @@ def annotate_image(item_id: str):
     ).replace(
         "__FILENAME__",
         filename,
+    ).replace(
+        "__IMAGE_VERSION__",
+        image_version,
     )
 
 

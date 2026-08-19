@@ -1,12 +1,12 @@
 {
-  "id": "ANG0013",
+  "id": "ANG0024",
   "status": "new",
-  "photo": "ANG0013.jpg",
-  "source": "external",
-  "sourceUrl": "https://commons.wikimedia.org/wiki/File:Watermelons_in_a_stack.jpg",
-  "author": "Wikimedia Commons contributor",
-  "license": "CC0",
-  "date": "2026-08-18",
+  "photo": "ANG0024.jpg",
+  "source": "own",
+  "sourceUrl": "",
+  "author": "",
+  "license": "",
+  "date": "2026-08-19",
   "variety": "",
   "origin": "",
   "weightKg": null,
@@ -24,5 +24,5 @@
   "externalQuality": null,
   "openedPhoto": "",
   "trainingStatus": "annotated",
-  "notes": "Immagine esterna di anguria intera; fonte e licenza registrate."
+  "notes": ""
 }
