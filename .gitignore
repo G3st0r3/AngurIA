@@ -60,3 +60,9 @@ __pycache__/
 *.pyc
 
 *.cache
+
+# AngurIA - training split generato automaticamente
+ai_service/datasets/watermelon/images/train/
+ai_service/datasets/watermelon/images/val/
+ai_service/datasets/watermelon/labels/train/
+ai_service/datasets/watermelon/labels/val/
