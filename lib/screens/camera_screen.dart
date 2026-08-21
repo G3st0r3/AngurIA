@@ -25,8 +25,7 @@ class _CameraScreenState extends State<CameraScreen> {
   final ImagePicker _picker = ImagePicker();
   final AiService _aiService = AiService();
   final ScoreService _scoreService = ScoreService();
-  final AnalysisHistoryService _historyService =
-      AnalysisHistoryService();
+  final AnalysisHistoryService _historyService = AnalysisHistoryService();
 
   Uint8List? _imageBytes;
   Uint8List? _annotatedImageBytes;
@@ -63,8 +62,7 @@ class _CameraScreenState extends State<CameraScreen> {
       return;
     }
 
-    final Uint8List bytes =
-        await selectedImage.readAsBytes();
+    final Uint8List bytes = await selectedImage.readAsBytes();
 
     if (!mounted) {
       return;
@@ -99,8 +97,7 @@ class _CameraScreenState extends State<CameraScreen> {
 
     if (imageBytes == null) {
       setState(() {
-        _errorMessage =
-            'Seleziona prima una fotografia.';
+        _errorMessage = 'Seleziona prima una fotografia.';
       });
 
       return;
@@ -123,38 +120,48 @@ class _CameraScreenState extends State<CameraScreen> {
     });
 
     try {
-      final Map<String, dynamic> result =
-          await _aiService.analyzeImage(
+      final Map<String, dynamic> result = await _aiService.analyzeImage(
         imageBytes,
       );
 
       Uint8List? annotatedBytes;
 
-      final Object? annotatedImageValue =
-          result['annotatedImageBase64'];
+      final Object? annotatedImageValue = result['annotatedImageBase64'];
 
-      if (annotatedImageValue is String &&
-          annotatedImageValue.isNotEmpty) {
-        annotatedBytes =
-            base64Decode(annotatedImageValue);
+      if (annotatedImageValue is String && annotatedImageValue.isNotEmpty) {
+        annotatedBytes = base64Decode(annotatedImageValue);
       }
 
       if (!mounted) {
         return;
       }
 
+      final bool found = (result['found'] as bool?) ?? false;
+
+      final Map<String, dynamic>? features =
+          result['features'] as Map<String, dynamic>?;
+
+      final String automaticShape = (features?['shape'] as String?) ?? '';
+
       setState(() {
         _analysis = result;
         _annotatedImageBytes = annotatedBytes;
+
+        if (automaticShape.isNotEmpty) {
+          _shape = automaticShape;
+        }
       });
+
+      if (found && automaticShape.isNotEmpty) {
+        await _calculateScore();
+      }
     } catch (error) {
       if (!mounted) {
         return;
       }
 
       setState(() {
-        _errorMessage =
-            'Errore durante l’analisi AI:\n$error';
+        _errorMessage = 'Errore durante l’analisi AI:\n$error';
       });
     } finally {
       if (mounted) {
@@ -208,8 +215,7 @@ class _CameraScreenState extends State<CameraScreen> {
     });
 
     try {
-      final Map<String, dynamic> result =
-          await _scoreService.calculateScore(
+      final Map<String, dynamic> result = await _scoreService.calculateScore(
         groundSpot: _groundSpot,
         peduncle: _peduncle,
         shape: _shape,
@@ -228,27 +234,18 @@ class _CameraScreenState extends State<CameraScreen> {
       });
 
       final Map<String, dynamic>? detection =
-          _analysis?['detection']
-              as Map<String, dynamic>?;
+          _analysis?['detection'] as Map<String, dynamic>?;
 
       final Map<String, dynamic>? bestCandidate =
-          _analysis?['bestCandidate']
-              as Map<String, dynamic>?;
+          _analysis?['bestCandidate'] as Map<String, dynamic>?;
 
-      final Map<String, dynamic>? detectorResult =
-          detection ?? bestCandidate;
+      final Map<String, dynamic>? detectorResult = detection ?? bestCandidate;
 
       try {
-        final Map<String, dynamic> saved =
-            await _historyService.saveAnalysis({
-          'score':
-              ((result['score'] as num?) ?? 0).toInt(),
-
-          'advice':
-              (result['advice'] as String?) ?? '',
-
+        final Map<String, dynamic> saved = await _historyService.saveAnalysis({
+          'score': ((result['score'] as num?) ?? 0).toInt(),
+          'advice': (result['advice'] as String?) ?? '',
           'betaFriendId': widget.betaFriendId,
-        
           'groundSpot': _groundSpot,
           'peduncle': _peduncle,
           'shape': _shape,
@@ -256,29 +253,14 @@ class _CameraScreenState extends State<CameraScreen> {
           'symmetry': _symmetry,
           'color': _color,
           'surface': _surface,
-
-          'reasons':
-              (result['reasons'] as List<dynamic>?) ??
-                  <dynamic>[],
-
-          'warnings':
-              (result['warnings'] as List<dynamic>?) ??
-                  <dynamic>[],
-
-          'detectorFound':
-              (_analysis?['found'] as bool?) ?? false,
-
+          'reasons': (result['reasons'] as List<dynamic>?) ?? <dynamic>[],
+          'warnings': (result['warnings'] as List<dynamic>?) ?? <dynamic>[],
+          'detectorFound': (_analysis?['found'] as bool?) ?? false,
           'detectorConfidence':
-              ((detectorResult?['confidence'] as num?) ?? 0)
-                  .toDouble(),
-
-          'detectorLabel':
-              (detectorResult?['label'] as String?) ?? '',
-
-          'shadowV2':
-              (result['shadowV2']
-                      as Map<String, dynamic>?) ??
-                  <String, dynamic>{},
+              ((detectorResult?['confidence'] as num?) ?? 0).toDouble(),
+          'detectorLabel': (detectorResult?['label'] as String?) ?? '',
+          'shadowV2': (result['shadowV2'] as Map<String, dynamic>?) ??
+              <String, dynamic>{},
         });
 
         if (!mounted) {
@@ -288,11 +270,9 @@ class _CameraScreenState extends State<CameraScreen> {
         setState(() {
           _saveSuccess = true;
 
-          _savedAnalysisId =
-              saved['analysisId'] as String?;
+          _savedAnalysisId = saved['analysisId'] as String?;
 
-          _saveMessage =
-              'Analisi salvata: '
+          _saveMessage = 'Analisi salvata: '
               '${saved['analysisId']}';
         });
       } catch (error) {
@@ -304,8 +284,7 @@ class _CameraScreenState extends State<CameraScreen> {
           _saveSuccess = false;
           _savedAnalysisId = null;
 
-          _saveMessage =
-              'Salvataggio non riuscito: '
+          _saveMessage = 'Salvataggio non riuscito: '
               '$error';
         });
       }
@@ -315,8 +294,7 @@ class _CameraScreenState extends State<CameraScreen> {
       }
 
       setState(() {
-        _errorMessage =
-            'Errore durante il calcolo '
+        _errorMessage = 'Errore durante il calcolo '
             'AngurIA Score:\n$error';
       });
     } finally {
@@ -358,26 +336,20 @@ class _CameraScreenState extends State<CameraScreen> {
           ),
         ),
       ],
-      onChanged:
-          _isScoreLoading ? null : onChanged,
+      onChanged: _isScoreLoading ? null : onChanged,
     );
   }
 
   Widget _buildScoreSection() {
-    final int score =
-        ((_scoreResult?['score'] as num?) ?? 0)
-            .toInt();
+    final int score = ((_scoreResult?['score'] as num?) ?? 0).toInt();
 
-    final String advice =
-        (_scoreResult?['advice'] as String?) ?? '';
+    final String advice = (_scoreResult?['advice'] as String?) ?? '';
 
     final List<dynamic> reasons =
-        (_scoreResult?['reasons'] as List<dynamic>?) ??
-            <dynamic>[];
+        (_scoreResult?['reasons'] as List<dynamic>?) ?? <dynamic>[];
 
     final List<dynamic> warnings =
-        (_scoreResult?['warnings'] as List<dynamic>?) ??
-            <dynamic>[];
+        (_scoreResult?['warnings'] as List<dynamic>?) ?? <dynamic>[];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -386,8 +358,7 @@ class _CameraScreenState extends State<CameraScreen> {
           title: 'Valutazione AngurIA',
           icon: Icons.stars_outlined,
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               const Text(
                 'Valuta le caratteristiche '
@@ -400,9 +371,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   height: 1.4,
                 ),
               ),
-
               const SizedBox(height: 18),
-
               _buildFeatureDropdown(
                 label: 'Macchia d’appoggio',
                 value: _groundSpot,
@@ -423,9 +392,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   });
                 },
               ),
-
               const SizedBox(height: 12),
-
               _buildFeatureDropdown(
                 label: 'Peduncolo',
                 value: _peduncle,
@@ -445,16 +412,13 @@ class _CameraScreenState extends State<CameraScreen> {
                   });
                 },
               ),
-
               const SizedBox(height: 12),
-
               _buildFeatureDropdown(
                 label: 'Forma',
                 value: _shape,
                 options: const {
                   'regular': 'Regolare',
-                  'slightly_irregular':
-                      'Leggermente irregolare',
+                  'slightly_irregular': 'Leggermente irregolare',
                   'irregular': 'Irregolare',
                 },
                 onChanged: (value) {
@@ -468,9 +432,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   });
                 },
               ),
-
               const SizedBox(height: 12),
-
               _buildFeatureDropdown(
                 label: 'Striature',
                 value: _stripes,
@@ -490,9 +452,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   });
                 },
               ),
-
               const SizedBox(height: 12),
-
               _buildFeatureDropdown(
                 label: 'Simmetria',
                 value: _symmetry,
@@ -512,9 +472,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   });
                 },
               ),
-
               const SizedBox(height: 12),
-
               _buildFeatureDropdown(
                 label: 'Colore',
                 value: _color,
@@ -534,9 +492,7 @@ class _CameraScreenState extends State<CameraScreen> {
                   });
                 },
               ),
-
               const SizedBox(height: 12),
-
               _buildFeatureDropdown(
                 label: 'Superficie',
                 value: _surface,
@@ -556,14 +512,9 @@ class _CameraScreenState extends State<CameraScreen> {
                   });
                 },
               ),
-
               const SizedBox(height: 20),
-
               ElevatedButton.icon(
-                onPressed:
-                    _isScoreLoading
-                        ? null
-                        : _calculateScore,
+                onPressed: _isScoreLoading ? null : _calculateScore,
                 icon: const Icon(
                   Icons.calculate_outlined,
                 ),
@@ -573,10 +524,8 @@ class _CameraScreenState extends State<CameraScreen> {
                       : 'Calcola AngurIA Score',
                 ),
               ),
-
               if (_isScoreLoading) ...[
                 const SizedBox(height: 16),
-
                 const Center(
                   child: CircularProgressIndicator(),
                 ),
@@ -584,42 +533,32 @@ class _CameraScreenState extends State<CameraScreen> {
             ],
           ),
         ),
-
         if (_saveMessage != null) ...[
           const SizedBox(height: 16),
-
           Card(
             elevation: 0,
             child: Padding(
               padding: const EdgeInsets.all(16),
               child: Text(
-                _saveSuccess
-                    ? '✅ $_saveMessage'
-                    : '❌ $_saveMessage',
+                _saveSuccess ? '✅ $_saveMessage' : '❌ $_saveMessage',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: _saveSuccess
-                      ? const Color(0xFF2E7D32)
-                      : Colors.red,
+                  color: _saveSuccess ? const Color(0xFF2E7D32) : Colors.red,
                 ),
               ),
             ),
           ),
         ],
-
-        if (_saveSuccess &&
-            _savedAnalysisId != null) ...[
+        if (_saveSuccess && _savedAnalysisId != null) ...[
           const SizedBox(height: 12),
-
           if (_feedbackCompleted)
             const Card(
               elevation: 0,
               child: Padding(
                 padding: EdgeInsets.all(16),
                 child: Row(
-                  mainAxisAlignment:
-                      MainAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Icon(
                       Icons.check_circle,
@@ -640,41 +579,36 @@ class _CameraScreenState extends State<CameraScreen> {
                 ),
               ),
             )
-         
-else
-  ElevatedButton.icon(
-    onPressed: () async {
-      final String analysisId =
-          _savedAnalysisId!;
+          else
+            ElevatedButton.icon(
+              onPressed: () async {
+                final String analysisId = _savedAnalysisId!;
 
-      final bool? feedbackSaved =
-          await Navigator.of(context).push<bool>(
-        MaterialPageRoute(
-          builder: (context) =>
-              FeedbackScreen(
-            analysisId: analysisId,
-          ),
-        ),
-      );
+                final bool? feedbackSaved =
+                    await Navigator.of(context).push<bool>(
+                  MaterialPageRoute(
+                    builder: (context) => FeedbackScreen(
+                      analysisId: analysisId,
+                    ),
+                  ),
+                );
 
-      if (feedbackSaved == true && mounted) {
-        setState(() {
-          _feedbackCompleted = true;
-        });
-      }
-    },
-    icon: const Icon(
-      Icons.restaurant_outlined,
-    ),
-    label: const Text(
-      'Com’è davvero?',
-    ),
-  ),
-
-],
+                if (feedbackSaved == true && mounted) {
+                  setState(() {
+                    _feedbackCompleted = true;
+                  });
+                }
+              },
+              icon: const Icon(
+                Icons.restaurant_outlined,
+              ),
+              label: const Text(
+                'Com’è davvero?',
+              ),
+            ),
+        ],
         if (_scoreResult != null) ...[
           const SizedBox(height: 16),
-
           Card(
             elevation: 0,
             child: Padding(
@@ -688,9 +622,7 @@ else
                       color: Colors.black54,
                     ),
                   ),
-
                   const SizedBox(height: 6),
-
                   Text(
                     '$score/100',
                     style: const TextStyle(
@@ -699,19 +631,15 @@ else
                       color: Color(0xFF2E7D32),
                     ),
                   ),
-
                   const SizedBox(height: 10),
-
                   Container(
-                    padding:
-                        const EdgeInsets.symmetric(
+                    padding: const EdgeInsets.symmetric(
                       horizontal: 18,
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFE7F2E5),
-                      borderRadius:
-                          BorderRadius.circular(30),
+                      borderRadius: BorderRadius.circular(30),
                     ),
                     child: Text(
                       advice,
@@ -726,21 +654,17 @@ else
               ),
             ),
           ),
-
           if (reasons.isNotEmpty) ...[
             const SizedBox(height: 16),
-
             _InfoCard(
               title: 'Punti favorevoli',
               icon: Icons.check_circle_outline,
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: reasons
                     .map(
                       (reason) => Padding(
-                        padding:
-                            const EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                           vertical: 5,
                         ),
                         child: Text(
@@ -755,21 +679,17 @@ else
               ),
             ),
           ],
-
           if (warnings.isNotEmpty) ...[
             const SizedBox(height: 16),
-
             _InfoCard(
               title: 'Aspetti da verificare',
               icon: Icons.warning_amber_rounded,
               child: Column(
-                crossAxisAlignment:
-                    CrossAxisAlignment.start,
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: warnings
                     .map(
                       (warning) => Padding(
-                        padding:
-                            const EdgeInsets.symmetric(
+                        padding: const EdgeInsets.symmetric(
                           vertical: 5,
                         ),
                         child: Text(
@@ -784,9 +704,7 @@ else
               ),
             ),
           ],
-
           const SizedBox(height: 12),
-
           const Text(
             'Score euristico sperimentale: '
             'non ancora validato rispetto '
@@ -805,45 +723,33 @@ else
 
   @override
   Widget build(BuildContext context) {
-    final bool found =
-        (_analysis?['found'] as bool?) ?? false;
+    final bool found = (_analysis?['found'] as bool?) ?? false;
 
     final Map<String, dynamic>? detection =
-        _analysis?['detection']
-            as Map<String, dynamic>?;
+        _analysis?['detection'] as Map<String, dynamic>?;
 
     final Map<String, dynamic>? bestCandidate =
-        _analysis?['bestCandidate']
-            as Map<String, dynamic>?;
+        _analysis?['bestCandidate'] as Map<String, dynamic>?;
 
-    final Map<String, dynamic>? displayedDetection =
-        detection ?? bestCandidate;
+    final Map<String, dynamic>? displayedDetection = detection ?? bestCandidate;
 
     final Map<String, dynamic>? boundingBox =
-        displayedDetection?['boundingBox']
-            as Map<String, dynamic>?;
+        displayedDetection?['boundingBox'] as Map<String, dynamic>?;
 
     final double confidence =
-        ((displayedDetection?['confidence'] as num?) ?? 0)
-            .toDouble();
+        ((displayedDetection?['confidence'] as num?) ?? 0).toDouble();
 
     final int inferenceTimeMs =
-        ((_analysis?['inferenceTimeMs'] as num?) ?? 0)
-            .toInt();
+        ((_analysis?['inferenceTimeMs'] as num?) ?? 0).toInt();
 
     final int rawCandidateCount =
-        ((_analysis?['rawCandidateCount'] as num?) ?? 0)
-            .toInt();
+        ((_analysis?['rawCandidateCount'] as num?) ?? 0).toInt();
 
     final double minimumConfidence =
-        ((_analysis?['minimumAcceptedConfidence']
-                    as num?) ??
-                0)
-            .toDouble();
+        ((_analysis?['minimumAcceptedConfidence'] as num?) ?? 0).toDouble();
 
     return Scaffold(
       backgroundColor: const Color(0xFFF4F8F3),
-
       appBar: AppBar(
         title: const Text(
           'Analisi AngurIA',
@@ -853,19 +759,14 @@ else
         ),
         centerTitle: true,
       ),
-
       body: SafeArea(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(20),
-
           child: Column(
-            crossAxisAlignment:
-                CrossAxisAlignment.stretch,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _buildImagePreview(),
-
               const SizedBox(height: 20),
-
               if (_imageBytes == null) ...[
                 ElevatedButton.icon(
                   onPressed: _isLoading
@@ -880,9 +781,7 @@ else
                     'Scegli dalla galleria',
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 OutlinedButton.icon(
                   onPressed: _isLoading
                       ? null
@@ -897,10 +796,7 @@ else
                   ),
                 ),
               ],
-
-              if (_imageBytes != null &&
-                  _analysis == null &&
-                  !_isLoading) ...[
+              if (_imageBytes != null && _analysis == null && !_isLoading) ...[
                 ElevatedButton.icon(
                   onPressed: _analyzeImage,
                   icon: const Icon(
@@ -910,9 +806,7 @@ else
                     'Analizza con AngurIA',
                   ),
                 ),
-
                 const SizedBox(height: 12),
-
                 OutlinedButton(
                   onPressed: _resetAnalysis,
                   child: const Text(
@@ -920,15 +814,12 @@ else
                   ),
                 ),
               ],
-
               if (_isLoading) ...[
                 const SizedBox(height: 24),
                 const _LoadingCard(),
               ],
-
               if (_errorMessage != null) ...[
                 const SizedBox(height: 20),
-
                 _InfoCard(
                   title: 'Errore',
                   icon: Icons.error_outline,
@@ -940,17 +831,13 @@ else
                   ),
                 ),
               ],
-
               if (_analysis != null) ...[
                 const SizedBox(height: 24),
-
                 _DetectionResultCard(
                   found: found,
                   confidence: confidence,
                 ),
-
                 const SizedBox(height: 16),
-
                 _InfoCard(
                   title: 'Analisi AI',
                   icon: Icons.psychology_outlined,
@@ -958,27 +845,21 @@ else
                     children: [
                       _ResultRow(
                         label: 'Oggetto',
-                        value:
-                            '${displayedDetection?['label'] ?? 'Nessuno'}',
+                        value: '${displayedDetection?['label'] ?? 'Nessuno'}',
                       ),
-
                       _ResultRow(
                         label: 'Confidenza',
-                        value:
-                            '${(confidence * 100).toStringAsFixed(1)}%',
+                        value: '${(confidence * 100).toStringAsFixed(1)}%',
                       ),
-
                       _ResultRow(
                         label: 'Soglia minima',
                         value:
                             '${(minimumConfidence * 100).toStringAsFixed(0)}%',
                       ),
-
                       _ResultRow(
                         label: 'Tempo AI',
                         value: '$inferenceTimeMs ms',
                       ),
-
                       _ResultRow(
                         label: 'Candidati rilevati',
                         value: '$rawCandidateCount',
@@ -986,10 +867,8 @@ else
                     ],
                   ),
                 ),
-
                 if (boundingBox != null) ...[
                   const SizedBox(height: 16),
-
                   _InfoCard(
                     title: 'Bounding Box',
                     icon: Icons.crop_free,
@@ -999,34 +878,25 @@ else
                           label: 'X',
                           value: '${boundingBox['x']}',
                         ),
-
                         _ResultRow(
                           label: 'Y',
                           value: '${boundingBox['y']}',
                         ),
-
                         _ResultRow(
                           label: 'Larghezza',
-                          value:
-                              '${boundingBox['width']} px',
+                          value: '${boundingBox['width']} px',
                         ),
-
                         _ResultRow(
                           label: 'Altezza',
-                          value:
-                              '${boundingBox['height']} px',
+                          value: '${boundingBox['height']} px',
                         ),
                       ],
                     ),
                   ),
                 ],
-
                 const SizedBox(height: 16),
-
                 _buildScoreSection(),
-
                 const SizedBox(height: 16),
-
                 const _InfoCard(
                   title: 'Stato del modello',
                   icon: Icons.science_outlined,
@@ -1042,9 +912,7 @@ else
                     ),
                   ),
                 ),
-
                 const SizedBox(height: 20),
-
                 ElevatedButton.icon(
                   onPressed: _resetAnalysis,
                   icon: const Icon(
@@ -1063,22 +931,16 @@ else
   }
 
   Widget _buildImagePreview() {
-    final Uint8List? imageToDisplay =
-        _annotatedImageBytes ?? _imageBytes;
+    final Uint8List? imageToDisplay = _annotatedImageBytes ?? _imageBytes;
 
     return Container(
       height: 340,
-
       decoration: BoxDecoration(
         color: Colors.white,
-
-        borderRadius:
-            BorderRadius.circular(28),
-
+        borderRadius: BorderRadius.circular(28),
         border: Border.all(
           color: const Color(0xFFB7D8B9),
         ),
-
         boxShadow: const [
           BoxShadow(
             blurRadius: 18,
@@ -1087,22 +949,17 @@ else
           ),
         ],
       ),
-
       clipBehavior: Clip.antiAlias,
-
       child: imageToDisplay == null
           ? const Column(
-              mainAxisAlignment:
-                  MainAxisAlignment.center,
+              mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Icon(
                   Icons.camera_alt_outlined,
                   size: 76,
                   color: Color(0xFF2E7D32),
                 ),
-
                 SizedBox(height: 18),
-
                 Text(
                   'Fotografa la tua anguria',
                   style: TextStyle(
@@ -1110,12 +967,9 @@ else
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-
                 SizedBox(height: 8),
-
                 Padding(
-                  padding:
-                      EdgeInsets.symmetric(
+                  padding: EdgeInsets.symmetric(
                     horizontal: 36,
                   ),
                   child: Text(
@@ -1138,21 +992,18 @@ else
                   imageToDisplay,
                   fit: BoxFit.contain,
                 ),
-
                 if (_annotatedImageBytes != null)
                   Positioned(
                     top: 12,
                     right: 12,
                     child: Container(
-                      padding:
-                          const EdgeInsets.symmetric(
+                      padding: const EdgeInsets.symmetric(
                         horizontal: 10,
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
                         color: Colors.black54,
-                        borderRadius:
-                            BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Text(
                         'AI overlay',
@@ -1170,8 +1021,7 @@ else
   }
 }
 
-class _DetectionResultCard
-    extends StatelessWidget {
+class _DetectionResultCard extends StatelessWidget {
   final bool found;
   final double confidence;
 
@@ -1182,9 +1032,8 @@ class _DetectionResultCard
 
   @override
   Widget build(BuildContext context) {
-    final String title = found
-        ? 'Anguria rilevata'
-        : 'Rilevamento non affidabile';
+    final String title =
+        found ? 'Anguria rilevata' : 'Rilevamento non affidabile';
 
     final String subtitle = found
         ? 'AngurIA ha individuato il frutto.'
@@ -1192,9 +1041,8 @@ class _DetectionResultCard
             'candidato, ma la confidenza '
             'è ancora troppo bassa.';
 
-    final IconData icon = found
-        ? Icons.check_circle
-        : Icons.warning_amber_rounded;
+    final IconData icon =
+        found ? Icons.check_circle : Icons.warning_amber_rounded;
 
     return Card(
       elevation: 0,
@@ -1205,26 +1053,17 @@ class _DetectionResultCard
             Icon(
               icon,
               size: 60,
-              color: found
-                  ? const Color(0xFF2E7D32)
-                  : Colors.orange,
+              color: found ? const Color(0xFF2E7D32) : Colors.orange,
             ),
-
             const SizedBox(height: 14),
-
             Text(
               title,
               textAlign: TextAlign.center,
-              style: Theme.of(context)
-                  .textTheme
-                  .titleLarge
-                  ?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
             ),
-
             const SizedBox(height: 8),
-
             Text(
               subtitle,
               textAlign: TextAlign.center,
@@ -1233,9 +1072,7 @@ class _DetectionResultCard
                 height: 1.4,
               ),
             ),
-
             const SizedBox(height: 18),
-
             Text(
               '${(confidence * 100).toStringAsFixed(1)}%',
               style: const TextStyle(
@@ -1244,7 +1081,6 @@ class _DetectionResultCard
                 color: Color(0xFF2E7D32),
               ),
             ),
-
             const Text(
               'confidenza AI',
               style: TextStyle(
@@ -1269,9 +1105,7 @@ class _LoadingCard extends StatelessWidget {
         child: Column(
           children: [
             CircularProgressIndicator(),
-
             SizedBox(height: 18),
-
             Text(
               'AngurIA sta analizzando '
               'la foto...',
@@ -1280,9 +1114,7 @@ class _LoadingCard extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-
             SizedBox(height: 6),
-
             Text(
               'Il modello AI sta cercando '
               'l’anguria.',
@@ -1316,8 +1148,7 @@ class _InfoCard extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.all(18),
         child: Column(
-          crossAxisAlignment:
-              CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Row(
               children: [
@@ -1325,26 +1156,18 @@ class _InfoCard extends StatelessWidget {
                   icon,
                   color: const Color(0xFF2E7D32),
                 ),
-
                 const SizedBox(width: 10),
-
                 Expanded(
                   child: Text(
                     title,
-                    style: Theme.of(context)
-                        .textTheme
-                        .titleMedium
-                        ?.copyWith(
-                          fontWeight:
-                              FontWeight.bold,
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
                         ),
                   ),
                 ),
               ],
             ),
-
             const SizedBox(height: 14),
-
             child,
           ],
         ),
@@ -1365,13 +1188,11 @@ class _ResultRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding:
-          const EdgeInsets.symmetric(
+      padding: const EdgeInsets.symmetric(
         vertical: 7,
       ),
       child: Row(
-        crossAxisAlignment:
-            CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(
             child: Text(
@@ -1381,9 +1202,7 @@ class _ResultRow extends StatelessWidget {
               ),
             ),
           ),
-
           const SizedBox(width: 12),
-
           Flexible(
             child: Text(
               value,
