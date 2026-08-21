@@ -36,6 +36,13 @@ MODEL_PATH = Path(
 
 MIN_ACCEPTED_CONFIDENCE = 0.25
 
+INFERENCE_IMAGE_SIZE = int(
+    os.environ.get(
+        "ANGURIA_IMGSZ",
+        "640",
+    )
+)
+
 
 app = FastAPI(
     title="AngurIA AI Service",
@@ -136,6 +143,8 @@ def health():
         "modelPath": str(MODEL_PATH),
         "minimumAcceptedConfidence":
             MIN_ACCEPTED_CONFIDENCE,
+        "inferenceImageSize":
+            INFERENCE_IMAGE_SIZE,
     }
 
 
@@ -300,7 +309,7 @@ async def detect_watermelon(
         results = model.predict(
             source=str(temp_path),
             conf=0.01,
-            imgsz=640,
+            imgsz=INFERENCE_IMAGE_SIZE,
             max_det=20,
             verbose=False,
         )
