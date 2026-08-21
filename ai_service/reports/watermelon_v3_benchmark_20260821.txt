@@ -1,0 +1,43 @@
+ANGURIA WATERMELON V3 - BENCHMARK
+
+Model:
+ai_service/runs/watermelon_v3/weights/best.pt
+
+SHA1:
+ad6fdb5c5de4fb9e56be48206957977c863d6524
+
+Dataset:
+25 immagini eleggibili
+37 bounding box
+20 train
+5 validation
+
+Validation final:
+Precision ~0.96724
+Recall ~0.66667
+mAP50 ~0.83922
+mAP50-95 ~0.55628
+
+Benchmark out-of-dataset:
+
+anguria_test.jpg
+V1: 0.0124
+V2: 0.0124
+V3: 0.7250
+
+anguria_test_2.jpg
+V1: 0.0125
+V2: 0.0125
+V3: 0.9523
+
+negative_test.jpg
+V1: 0.0124
+V2: 0.0124
+V3: 0.0942
+
+Operational threshold:
+0.25
+
+Result:
+V3 supera la soglia sui 2 positivi
+e resta sotto soglia sul negativo.
