@@ -71,3 +71,35 @@ ai_service/datasets/watermelon/labels/val/
 !ai_service/runs/watermelon_v3/
 !ai_service/runs/watermelon_v3/weights/
 !ai_service/runs/watermelon_v3/weights/best.pt
+
+# AngurIA - file locali e temporanei
+ai_service/.pids/
+
+# Backup automatici Python/Dart
+ai_service/*_before_*.py
+ai_service/*_backup.py
+ai_service/*_stable_*.py
+ai_service/*_working_*.py
+ai_service/intelligence/*_before_*.py
+ai_service/intelligence/*_stable_*.py
+lib/**/*_before_*.dart
+lib/**/*_backup.dart
+lib/**/*_stabile_*.dart
+
+# Report e artefatti diagnostici generati
+ai_service/reports/
+ai_service/datasets/watermelon/analysis_history/
+ai_service/datasets/watermelon/annotation_previews/
+ai_service/datasets/watermelon/cleanup_backups/
+
+# AngurIA V3 - conserva solo il modello deployabile
+ai_service/runs/watermelon_v3/*
+!ai_service/runs/watermelon_v3/weights/
+ai_service/runs/watermelon_v3/weights/*
+!ai_service/runs/watermelon_v3/weights/best.pt
+
+# AngurIA - ulteriori backup/temporanei
+ai_service/*_signal_fix_*.py
+ai_service/scripts/*_before_*.py
+ai_service/scripts/*_before_retry_*.py
+ai_service/datasets/watermelon/raw/opened_external/
