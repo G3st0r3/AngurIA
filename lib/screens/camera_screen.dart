@@ -143,6 +143,8 @@ class _CameraScreenState extends State<CameraScreen> {
 
       final String automaticShape = (features?['shape'] as String?) ?? '';
 
+      final String automaticSymmetry = (features?['symmetry'] as String?) ?? '';
+
       setState(() {
         _analysis = result;
         _annotatedImageBytes = annotatedBytes;
@@ -150,9 +152,14 @@ class _CameraScreenState extends State<CameraScreen> {
         if (automaticShape.isNotEmpty) {
           _shape = automaticShape;
         }
+
+        if (automaticSymmetry.isNotEmpty) {
+          _symmetry = automaticSymmetry;
+        }
       });
 
-      if (found && automaticShape.isNotEmpty) {
+      if (found &&
+          (automaticShape.isNotEmpty || automaticSymmetry.isNotEmpty)) {
         await _calculateScore();
       }
     } catch (error) {

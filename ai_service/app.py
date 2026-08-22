@@ -262,6 +262,143 @@ def estimate_shape_feature(
 
 
 
+
+def estimate_symmetry_feature(
+    image,
+    bounding_box,
+):
+    """
+    Stima sperimentale della simmetria visiva
+    dell'anguria confrontando le due metà
+    del contorno principale.
+
+    Restituisce:
+    - high
+    - medium
+    - low
+    - "" se la stima non è affidabile
+    """
+
+    if image is None or not bounding_box:
+        return ""
+
+    x = int(bounding_box["x"])
+    y = int(bounding_box["y"])
+    width = int(bounding_box["width"])
+    height = int(bounding_box["height"])
+
+    if width <= 0 or height <= 0:
+        return ""
+
+    crop = image[
+        max(0, y):max(0, y + height),
+        max(0, x):max(0, x + width),
+    ]
+
+    if crop.size == 0:
+        return ""
+
+    gray = cv2.cvtColor(
+        crop,
+        cv2.COLOR_BGR2GRAY,
+    )
+
+    gray = cv2.GaussianBlur(
+        gray,
+        (7, 7),
+        0,
+    )
+
+    edges = cv2.Canny(
+        gray,
+        40,
+        120,
+    )
+
+    contours, _ = cv2.findContours(
+        edges,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE,
+    )
+
+    if not contours:
+        return ""
+
+    contour = max(
+        contours,
+        key=cv2.contourArea,
+    )
+
+    area = cv2.contourArea(contour)
+
+    crop_area = crop.shape[0] * crop.shape[1]
+
+    if area <= 0 or crop_area <= 0:
+        return ""
+
+    coverage = area / crop_area
+
+    if coverage < 0.20:
+        return ""
+
+    mask = (
+        __import__("numpy").zeros(
+            gray.shape,
+            dtype="uint8",
+        )
+    )
+
+    cv2.drawContours(
+        mask,
+        [contour],
+        -1,
+        255,
+        thickness=-1,
+    )
+
+    width_mask = mask.shape[1]
+
+    if width_mask < 4:
+        return ""
+
+    middle = width_mask // 2
+
+    left = mask[:, :middle]
+    right = mask[:, width_mask - middle:]
+
+    right_flipped = cv2.flip(
+        right,
+        1,
+    )
+
+    intersection = (
+        (left > 0) &
+        (right_flipped > 0)
+    ).sum()
+
+    union = (
+        (left > 0) |
+        (right_flipped > 0)
+    ).sum()
+
+    if union <= 0:
+        return ""
+
+    symmetry_ratio = (
+        float(intersection)
+        / float(union)
+    )
+
+    if symmetry_ratio >= 0.90:
+        return "high"
+
+    if symmetry_ratio >= 0.75:
+        return "medium"
+
+    return "low"
+
+
+
 @app.post("/detect")
 async def detect_watermelon(
     image: UploadFile = File(...),
@@ -390,6 +527,12 @@ async def detect_watermelon(
             str(temp_path)
         )
 
+        feature_image = (
+            original_image.copy()
+            if original_image is not None
+            else None
+        )
+
         if (
             original_image is not None
             and best_candidate is not None
@@ -477,11 +620,21 @@ async def detect_watermelon(
                 inference_time_ms,
             "features": {
                 "shape": (
-                    estimate_shape_feature(
-                        original_image,
+                    estimate_shape_feature_grabcut(
+                        feature_image,
                         best_candidate["boundingBox"],
                     )
-                    if best_candidate is not None
+                    if found
+                    and best_candidate is not None
+                    else ""
+                ),
+                "symmetry": (
+                    estimate_symmetry_feature_grabcut(
+                        feature_image,
+                        best_candidate["boundingBox"],
+                    )
+                    if found
+                    and best_candidate is not None
                     else ""
                 ),
             },
@@ -963,3 +1116,267 @@ def save_analysis_feedback(
         "analysisId": analysis_id,
         "status": "feedback_completed",
     }
+def estimate_symmetry_feature_grabcut(
+    image,
+    bounding_box,
+):
+    import numpy as np
+
+    if image is None or not bounding_box:
+        return ""
+
+    x = max(0, int(bounding_box["x"]))
+    y = max(0, int(bounding_box["y"]))
+    width = int(bounding_box["width"])
+    height = int(bounding_box["height"])
+
+    if width <= 0 or height <= 0:
+        return ""
+
+    crop = image[
+        y:min(image.shape[0], y + height),
+        x:min(image.shape[1], x + width),
+    ]
+
+    if crop.size == 0:
+        return ""
+
+    crop_height, crop_width = crop.shape[:2]
+
+    if crop_width < 20 or crop_height < 20:
+        return ""
+
+    mask = np.full(
+        (crop_height, crop_width),
+        cv2.GC_PR_BGD,
+        dtype=np.uint8,
+    )
+
+    border_x = max(2, int(crop_width * 0.04))
+    border_y = max(2, int(crop_height * 0.04))
+
+    mask[
+        border_y:crop_height - border_y,
+        border_x:crop_width - border_x,
+    ] = cv2.GC_PR_FGD
+
+    mask[
+        int(crop_height * 0.25):int(crop_height * 0.75),
+        int(crop_width * 0.25):int(crop_width * 0.75),
+    ] = cv2.GC_FGD
+
+    bg_model = np.zeros((1, 65), np.float64)
+    fg_model = np.zeros((1, 65), np.float64)
+
+    cv2.setRNGSeed(42)
+
+    cv2.grabCut(
+        crop,
+        mask,
+        None,
+        bg_model,
+        fg_model,
+        5,
+        cv2.GC_INIT_WITH_MASK,
+    )
+
+    binary = np.where(
+        (mask == cv2.GC_FGD)
+        | (mask == cv2.GC_PR_FGD),
+        255,
+        0,
+    ).astype("uint8")
+
+    contours, _ = cv2.findContours(
+        binary,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE,
+    )
+
+    if not contours:
+        return ""
+
+    contour = max(
+        contours,
+        key=cv2.contourArea,
+    )
+
+    area = cv2.contourArea(contour)
+    crop_area = crop_height * crop_width
+
+    if area <= 0 or crop_area <= 0:
+        return ""
+
+    coverage = area / float(crop_area)
+
+    if coverage < 0.20:
+        return ""
+
+    object_mask = np.zeros_like(binary)
+
+    cv2.drawContours(
+        object_mask,
+        [contour],
+        -1,
+        255,
+        -1,
+    )
+
+    middle = crop_width // 2
+
+    if middle <= 1:
+        return ""
+
+    left = object_mask[:, :middle]
+    right = object_mask[:, crop_width - middle:]
+    right = cv2.flip(right, 1)
+
+    intersection = (
+        (left > 0)
+        & (right > 0)
+    ).sum()
+
+    union = (
+        (left > 0)
+        | (right > 0)
+    ).sum()
+
+    if union <= 0:
+        return ""
+
+    symmetry_ratio = (
+        float(intersection)
+        / float(union)
+    )
+
+    if symmetry_ratio >= 0.90:
+        return "high"
+
+    if symmetry_ratio >= 0.75:
+        return "medium"
+
+    return "low"
+
+def estimate_shape_feature_grabcut(
+    image,
+    bounding_box,
+):
+    import numpy as np
+
+    if image is None or not bounding_box:
+        return ""
+
+    x = max(0, int(bounding_box["x"]))
+    y = max(0, int(bounding_box["y"]))
+    width = int(bounding_box["width"])
+    height = int(bounding_box["height"])
+
+    if width <= 0 or height <= 0:
+        return ""
+
+    crop = image[
+        y:min(image.shape[0], y + height),
+        x:min(image.shape[1], x + width),
+    ]
+
+    if crop.size == 0:
+        return ""
+
+    h, w = crop.shape[:2]
+
+    if w < 20 or h < 20:
+        return ""
+
+    mask = np.full(
+        (h, w),
+        cv2.GC_PR_BGD,
+        dtype=np.uint8,
+    )
+
+    bx = max(2, int(w * 0.04))
+    by = max(2, int(h * 0.04))
+
+    mask[
+        by:h - by,
+        bx:w - bx,
+    ] = cv2.GC_PR_FGD
+
+    mask[
+        int(h * 0.25):int(h * 0.75),
+        int(w * 0.25):int(w * 0.75),
+    ] = cv2.GC_FGD
+
+    bg_model = np.zeros((1, 65), np.float64)
+    fg_model = np.zeros((1, 65), np.float64)
+
+    cv2.setRNGSeed(42)
+
+    cv2.grabCut(
+        crop,
+        mask,
+        None,
+        bg_model,
+        fg_model,
+        5,
+        cv2.GC_INIT_WITH_MASK,
+    )
+
+    binary = np.where(
+        (mask == cv2.GC_FGD)
+        | (mask == cv2.GC_PR_FGD),
+        255,
+        0,
+    ).astype("uint8")
+
+    contours, _ = cv2.findContours(
+        binary,
+        cv2.RETR_EXTERNAL,
+        cv2.CHAIN_APPROX_SIMPLE,
+    )
+
+    if not contours:
+        return ""
+
+    contour = max(
+        contours,
+        key=cv2.contourArea,
+    )
+
+    area = cv2.contourArea(contour)
+
+    if area <= 0:
+        return ""
+
+    hull = cv2.convexHull(contour)
+    hull_area = cv2.contourArea(hull)
+
+    if hull_area <= 0:
+        return ""
+
+    solidity = area / hull_area
+
+    perimeter = cv2.arcLength(
+        contour,
+        True,
+    )
+
+    if perimeter <= 0:
+        return ""
+
+    circularity = (
+        4.0 * 3.141592653589793 * area
+        / (perimeter * perimeter)
+    )
+
+    coverage = area / float(h * w)
+
+    if coverage < 0.20:
+        return ""
+
+    if solidity >= 0.94 and circularity >= 0.65:
+        return "regular"
+
+    if solidity >= 0.86 and circularity >= 0.45:
+        return "slightly_irregular"
+
+    return "irregular"
