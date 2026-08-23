@@ -551,11 +551,89 @@ async def detect_watermelon(
                 flush=True,
             )
 
-        feature_image = (
-            original_image.copy()
-            if original_image is not None
-            else None
-        )
+        feature_image = None
+        feature_scale = 1.0
+        feature_box = None
+
+        if original_image is not None:
+            feature_image = original_image.copy()
+
+            feature_max_side = 640
+            feature_height, feature_width = (
+                feature_image.shape[:2]
+            )
+
+            feature_long_side = max(
+                feature_width,
+                feature_height,
+            )
+
+            if feature_long_side > feature_max_side:
+                feature_scale = (
+                    feature_max_side
+                    / feature_long_side
+                )
+
+                resized_width = max(
+                    1,
+                    round(
+                        feature_width
+                        * feature_scale
+                    ),
+                )
+                resized_height = max(
+                    1,
+                    round(
+                        feature_height
+                        * feature_scale
+                    ),
+                )
+
+                feature_image = cv2.resize(
+                    feature_image,
+                    (
+                        resized_width,
+                        resized_height,
+                    ),
+                    interpolation=cv2.INTER_AREA,
+                )
+
+            print(
+                f"🔬 FEATURE IMAGE SIZE | "
+                f"{feature_image.shape[1]}x"
+                f"{feature_image.shape[0]}",
+                flush=True,
+            )
+
+            if best_candidate is not None:
+                source_box = best_candidate[
+                    "boundingBox"
+                ]
+
+                feature_box = {
+                    "x": round(
+                        source_box["x"]
+                        * feature_scale
+                    ),
+                    "y": round(
+                        source_box["y"]
+                        * feature_scale
+                    ),
+                    "width": round(
+                        source_box["width"]
+                        * feature_scale
+                    ),
+                    "height": round(
+                        source_box["height"]
+                        * feature_scale
+                    ),
+                }
+
+                print(
+                    f"🔬 FEATURE BOX | "
+                    f"{feature_box}",
+                    flush=True,
+                )
 
         if (
             original_image is not None
@@ -648,19 +726,19 @@ async def detect_watermelon(
                 "shape": (
                     estimate_shape_feature_grabcut(
                         feature_image,
-                        best_candidate["boundingBox"],
+                        feature_box,
                     )
                     if found
-                    and best_candidate is not None
+                    and feature_box is not None
                     else ""
                 ),
                 "symmetry": (
                     estimate_symmetry_feature_grabcut(
                         feature_image,
-                        best_candidate["boundingBox"],
+                        feature_box,
                     )
                     if found
-                    and best_candidate is not None
+                    and feature_box is not None
                     else ""
                 ),
             },
