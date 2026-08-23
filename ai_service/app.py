@@ -403,6 +403,13 @@ def estimate_symmetry_feature(
 async def detect_watermelon(
     image: UploadFile = File(...),
 ):
+    print(
+        f"📱 DETECT START | "
+        f"filename={image.filename} | "
+        f"content_type={image.content_type}",
+        flush=True,
+    )
+
     if model is None:
         raise HTTPException(
             status_code=503,
@@ -440,6 +447,13 @@ async def detect_watermelon(
             temp_path = Path(
                 temp_file.name
             )
+
+        print(
+            f"📥 UPLOAD RICEVUTO | "
+            f"path={temp_path} | "
+            f"bytes={temp_path.stat().st_size}",
+            flush=True,
+        )
 
         started_at = time.perf_counter()
 
