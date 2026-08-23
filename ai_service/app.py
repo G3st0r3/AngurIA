@@ -455,6 +455,7 @@ async def detect_watermelon(
             flush=True,
         )
 
+        print("🧠 YOLO START", flush=True)
         started_at = time.perf_counter()
 
         results = model.predict(
@@ -464,6 +465,8 @@ async def detect_watermelon(
             max_det=20,
             verbose=False,
         )
+
+        print("✅ YOLO END", flush=True)
 
         inference_time_ms = round(
             (time.perf_counter() - started_at)
@@ -541,6 +544,13 @@ async def detect_watermelon(
             str(temp_path)
         )
 
+        if original_image is not None:
+            print(
+                f"🖼 IMAGE SIZE | "
+                f"{original_image.shape[1]}x{original_image.shape[0]}",
+                flush=True,
+            )
+
         feature_image = (
             original_image.copy()
             if original_image is not None
@@ -616,6 +626,8 @@ async def detect_watermelon(
                         encoded_image.tobytes()
                     ).decode("utf-8")
                 )
+
+        print("🔬 FEATURES END", flush=True)
 
         return {
             "found": found,
