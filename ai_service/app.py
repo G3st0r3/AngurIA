@@ -22,7 +22,7 @@ BASE_DIR = Path(__file__).resolve().parent
 DEFAULT_MODEL_PATH = (
     BASE_DIR
     / "runs"
-    / "watermelon_v1"
+    / "watermelon_v3"
     / "weights"
     / "best.pt"
 )
