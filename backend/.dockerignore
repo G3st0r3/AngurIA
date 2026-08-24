@@ -7,3 +7,14 @@ build/
 .gitignore
 .idea/
 .packages
+# Mantieni solo il modello AngurIA per il deploy
+!ai_service/runs/
+ai_service/runs/*
+
+!ai_service/runs/watermelon_v1/
+ai_service/runs/watermelon_v1/*
+
+!ai_service/runs/watermelon_v1/weights/
+ai_service/runs/watermelon_v1/weights/*
+
+!ai_service/runs/watermelon_v1/weights/best.pt

@@ -358,6 +358,24 @@ class _CameraScreenState extends State<CameraScreen> {
     final List<dynamic> warnings =
         (_scoreResult?['warnings'] as List<dynamic>?) ?? <dynamic>[];
 
+    final Map<String, dynamic> shadowV2 =
+        (_scoreResult?['shadowV2'] as Map<String, dynamic>?) ??
+            <String, dynamic>{};
+
+    final int completeness = ((shadowV2['completeness'] as num?) ?? 0).round();
+
+    final int observedFeatures =
+        ((shadowV2['observedFeatures'] as num?) ?? 0).toInt();
+
+    final List<dynamic> missingFeatures =
+        (shadowV2['missingFeatures'] as List<dynamic>?) ?? <dynamic>[];
+
+    final String analysisLevel = completeness >= 70
+        ? 'Analisi approfondita'
+        : completeness >= 40
+            ? 'Analisi intermedia'
+            : 'Analisi preliminare';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -621,28 +639,41 @@ class _CameraScreenState extends State<CameraScreen> {
             child: Padding(
               padding: const EdgeInsets.all(22),
               child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const Text(
-                    'AngurIA Score',
+                    'ANGURIA SCORE',
+                    textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: 17,
+                      fontSize: 13,
+                      letterSpacing: 1.3,
+                      fontWeight: FontWeight.w600,
                       color: Colors.black54,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const SizedBox(height: 8),
                   Text(
-                    '$score/100',
+                    '$score',
+                    textAlign: TextAlign.center,
                     style: const TextStyle(
-                      fontSize: 44,
-                      fontWeight: FontWeight.bold,
+                      fontSize: 58,
+                      height: 1,
+                      fontWeight: FontWeight.w800,
                       color: Color(0xFF2E7D32),
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const Text(
+                    'su 100',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      color: Colors.black45,
+                    ),
+                  ),
+                  const SizedBox(height: 18),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 18,
-                      vertical: 10,
+                      vertical: 11,
                     ),
                     decoration: BoxDecoration(
                       color: const Color(0xFFE7F2E5),
@@ -650,13 +681,87 @@ class _CameraScreenState extends State<CameraScreen> {
                     ),
                     child: Text(
                       advice,
+                      textAlign: TextAlign.center,
                       style: const TextStyle(
-                        fontSize: 17,
+                        fontSize: 18,
                         fontWeight: FontWeight.bold,
                         color: Color(0xFF2E7D32),
                       ),
                     ),
                   ),
+                  const SizedBox(height: 22),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              '$completeness%',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            const Text(
+                              'completezza',
+                              style: TextStyle(
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Text(
+                              '$observedFeatures/7',
+                              style: const TextStyle(
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 3),
+                            const Text(
+                              'indicatori',
+                              style: TextStyle(
+                                color: Colors.black54,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 16),
+                  LinearProgressIndicator(
+                    value: completeness.clamp(0, 100) / 100,
+                    minHeight: 8,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    analysisLevel,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  if (missingFeatures.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      'Puoi migliorare il risultato '
+                      'aggiungendo ${missingFeatures.length} '
+                      '${missingFeatures.length == 1 ? 'indicatore' : 'indicatori'} '
+                      'non ancora valutati.',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        height: 1.4,
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),
