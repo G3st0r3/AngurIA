@@ -854,6 +854,62 @@ def score_watermelon(payload: ScoreRequest):
 
 
 # ============================================================
+# ANGURIA BETA REPORT API
+# ============================================================
+
+@app.get("/beta/report/24h")
+def beta_report_24h():
+    if not DATABASE_URL:
+        raise HTTPException(status_code=503, detail="Database non configurato")
+
+    try:
+        from beta_monitor import load_beta_activity, load_summary
+
+        summary = load_summary()
+        activity = load_beta_activity()
+
+        visitors_7d = int(activity.get("visitors7d", 0) or 0)
+        analyses_7d = int(activity.get("analyses7d", 0) or 0)
+
+        conversion_7d = (
+            round(analyses_7d / visitors_7d * 100, 1)
+            if visitors_7d else 0.0
+        )
+
+        return {
+            "period": "24h",
+            "visits24h": int(activity.get("visits24h", 0) or 0),
+            "visitors7d": visitors_7d,
+            "analyses7d": analyses_7d,
+            "feedback7d": int(activity.get("feedback7d", 0) or 0),
+            "conversion7d": conversion_7d,
+            "beta": {
+                "friends": int(summary.get("betaFriends", 0) or 0),
+                "analysesTotal": int(summary.get("analysesTotal", 0) or 0),
+                "feedbackCompleted": int(summary.get("feedbackCompleted", 0) or 0),
+                "completionRate": float(summary.get("completionRate", 0) or 0),
+            },
+            "quality": {
+                "avgScore": float(summary.get("avgScore", 0) or 0),
+                "avgRealQuality": float(summary.get("avgRealQuality", 0) or 0),
+                "avgPredictionError": float(summary.get("avgPredictionError", 0) or 0),
+                "accuratePredictions": int(summary.get("accuratePredictions", 0) or 0),
+                "overestimatedPredictions": int(summary.get("overestimatedPredictions", 0) or 0),
+                "underestimatedPredictions": int(summary.get("underestimatedPredictions", 0) or 0),
+            },
+        }
+
+    except HTTPException:
+        raise
+    except Exception as error:
+        print(f"Beta report non disponibile: {error}", flush=True)
+        raise HTTPException(
+            status_code=500,
+            detail="Errore generazione Beta report",
+        )
+
+
+# ============================================================
 # ANGURIA BETA VISIT API
 # ============================================================
 
