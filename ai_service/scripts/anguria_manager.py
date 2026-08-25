@@ -21,7 +21,7 @@ CARDS_DIR = DATASET_DIR / "cards"
 MODEL_PATH = (
     BASE_DIR
     / "runs"
-    / "watermelon_v1"
+    / "watermelon_v3"
     / "weights"
     / "best.pt"
 )
@@ -116,9 +116,9 @@ def command_status():
     print()
 
     if MODEL_PATH.exists():
-        print("✅ Modello watermelon_v1 presente")
+        print("✅ Modello watermelon_v3 presente")
     else:
-        print("❌ Modello watermelon_v1 NON trovato")
+        print("❌ Modello watermelon_v3 NON trovato")
 
     ai_pid = service_pid(8000)
     dataset_pid = service_pid(8001)
