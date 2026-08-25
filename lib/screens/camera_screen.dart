@@ -136,8 +136,6 @@ class _CameraScreenState extends State<CameraScreen> {
         return;
       }
 
-      final bool found = (result['found'] as bool?) ?? false;
-
       final Map<String, dynamic>? features =
           result['features'] as Map<String, dynamic>?;
 
@@ -158,10 +156,11 @@ class _CameraScreenState extends State<CameraScreen> {
         }
       });
 
-      if (found &&
-          (automaticShape.isNotEmpty || automaticSymmetry.isNotEmpty)) {
-        await _calculateScore();
-      }
+      // Photo-first flow:
+      // every completed AI analysis produces a preliminary score.
+      // Automatic features enrich it when available; manual features
+      // can refine the result afterwards.
+      await _calculateScore();
     } catch (error) {
       if (!mounted) {
         return;
