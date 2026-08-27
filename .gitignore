@@ -103,3 +103,6 @@ ai_service/*_signal_fix_*.py
 ai_service/scripts/*_before_*.py
 ai_service/scripts/*_before_retry_*.py
 ai_service/datasets/watermelon/raw/opened_external/
+
+# External watermelon datasets: local/provenance-controlled, not versioned
+ai_service/datasets/watermelon/raw/external/
