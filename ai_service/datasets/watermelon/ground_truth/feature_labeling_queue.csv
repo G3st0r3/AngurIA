@@ -1,0 +1,32 @@
+id,photo,image_path,image_available,source,groundSpot,peduncle,stripes,color,surface,notes
+ANG0002,ANG0002.jpg,ai_service/datasets/watermelon/raw/own/ANG0002.jpg,True,own,creamy_yellow,,medium,balanced,minor_defects,scheda ricostruita automaticamente
+ANG0003,ANG0003.jpg,ai_service/datasets/watermelon/raw/own/ANG0003.jpg,True,own,,,,,,scheda ricostruita automaticamente
+ANG0004,ANG0004.jpg,ai_service/datasets/watermelon/raw/own/ANG0004.jpg,True,own,,,,,,scheda ricostruita automaticamente
+ANG0005,ANG0005.jpg,ai_service/datasets/watermelon/raw/external/ANG0005.jpg,True,external,,,,,,Immagine esterna Wikimedia Commons; fonte e licenza registrate.
+ANG0006,ANG0006.jpg,ai_service/datasets/watermelon/raw/external/ANG0006.jpg,True,external,,,,,,Immagine esterna Wikimedia Commons; fonte e licenza registrate.
+ANG0007,ANG0007.jpg,ai_service/datasets/watermelon/raw/external/ANG0007.jpg,True,external,,,,,,Immagine esterna Wikimedia Commons; fonte e licenza registrate.
+ANG0008,ANG0008.jpg,ai_service/datasets/watermelon/raw/external/ANG0008.jpg,True,external,,,,,,Immagine esterna Wikimedia Commons; fonte e licenza registrate.
+ANG0009,ANG0009.jpg,ai_service/datasets/watermelon/raw/external/ANG0009.jpg,True,external,,,,,,Immagine esterna Wikimedia Commons; fonte e licenza registrate.
+ANG0010,ANG0010.jpg,ai_service/datasets/watermelon/raw/external/ANG0010.jpg,True,external,,,,,,Immagine esterna Wikimedia Commons; fonte e licenza registrate.
+ANG0011,ANG0011.jpg,ai_service/datasets/watermelon/raw/external/ANG0011.jpg,True,external,,,,,,Immagine esterna di anguria intera; fonte e licenza registrate.
+ANG0012,ANG0012.jpg,ai_service/datasets/watermelon/raw/opened_external/ANG0012.jpg,True,external,,,,,,Immagine esterna di anguria aperta; esclusa dal detector delle angurie intere.
+ANG0013,ANG0013.jpg,ai_service/datasets/watermelon/raw/external/ANG0013.jpg,True,external,,,,,,Immagine esterna di anguria intera; fonte e licenza registrate.
+ANG0014,ANG0014.jpg,ai_service/datasets/watermelon/raw/own/ANG0014.jpg,True,own,,,,,,
+ANG0015,ANG0015.jpg,ai_service/datasets/watermelon/raw/own/ANG0015.jpg,True,own,,,,,,
+ANG0016,ANG0016.jpg,ai_service/datasets/watermelon/raw/own/ANG0016.jpg,True,own,,,,,,
+ANG0017,ANG0017.jpg,ai_service/datasets/watermelon/raw/own/ANG0017.jpg,True,own,,,,,,
+ANG0018,ANG0018.jpg,ai_service/datasets/watermelon/raw/own/ANG0018.jpg,True,own,,,,,,
+ANG0019,ANG0019.jpg,ai_service/datasets/watermelon/raw/own/ANG0019.jpg,True,own,,,,,,
+ANG0020,ANG0020.jpg,ai_service/datasets/watermelon/raw/own/ANG0020.jpg,True,own,,,,,,
+ANG0021,ANG0021.jpg,ai_service/datasets/watermelon/raw/own/ANG0021.jpg,True,own,,,,,,
+ANG0022,ANG0022.jpg,ai_service/datasets/watermelon/raw/own/ANG0022.jpg,True,own,,,,,,
+ANG0023,ANG0023.jpg,ai_service/datasets/watermelon/raw/own/ANG0023.jpg,True,own,,,,,,
+ANG0024,ANG0024.jpg,ai_service/datasets/watermelon/raw/own/ANG0024.jpg,True,own,,,,,,
+ANG0025,ANG0025.jpg,ai_service/datasets/watermelon/raw/own/ANG0025.jpg,True,own,,,,,,
+ANG0026,ANG0026.jpg,ai_service/datasets/watermelon/raw/own/ANG0026.jpg,True,own,,,,,,
+ANG0027,ANG0027.jpg,ai_service/datasets/watermelon/raw/own/ANG0027.jpg,True,own,,,,,,
+ANG0028,ANG0028.jpg,ai_service/datasets/watermelon/raw/own/ANG0028.jpg,True,own,,,,,,
+ANG0029,ANG0029.jpg,ai_service/datasets/watermelon/raw/own/ANG0029.jpg,True,own,,,,,,
+ANG0030,ANG0030.jpg,ai_service/datasets/watermelon/raw/own/ANG0030.jpg,True,own,,,,,,
+ANG0031,ANG0031.jpg,ai_service/datasets/watermelon/raw/own/ANG0031.jpg,True,own,,,,,,
+ANG0032,ANG0032.jpg,ai_service/datasets/watermelon/raw/own/ANG0032.jpg,True,own,,,,,,
